@@ -1,41 +1,26 @@
 import express from "express";
-import { listContainers, startContainer, stopContainer, removeContainer } from "../services/dockerService.js";
+import { syncContainersToDB } from "../services/dockerService.js"; // Import the sync function
 
 const router = express.Router();
 
+// Route to manually trigger syncing containers to the DB (optional)
+router.get("/sync", async (req, res) => {
+  try {
+    await syncContainersToDB();  // Sync containers manually if needed
+    res.status(200).json({ message: "Containers synced successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to sync containers" });
+  }
+});
+
+// Other existing routes for container management, if needed
+// For example, fetching containers from MongoDB
 router.get("/", async (req, res) => {
   try {
-    const containers = await listContainers();
-    res.json(containers);
+    const containers = await Container.find();
+    res.status(200).json(containers);
   } catch (error) {
     res.status(500).json({ error: "Error fetching containers" });
-  }
-});
-
-router.post("/:id/start", async (req, res) => {
-  try {
-    await startContainer(req.params.id);
-    res.json({ message: "Container started" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to start container" });
-  }
-});
-
-router.post("/:id/stop", async (req, res) => {
-  try {
-    await stopContainer(req.params.id);
-    res.json({ message: "Container stopped" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to stop container" });
-  }
-});
-
-router.delete("/:id", async (req, res) => {
-  try {
-    await removeContainer(req.params.id);
-    res.json({ message: "Container removed" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to remove container" });
   }
 });
 
