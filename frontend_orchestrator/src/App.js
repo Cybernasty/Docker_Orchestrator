@@ -1,23 +1,28 @@
-import logo from './logo.svg';
-import './App.css';
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 function App() {
+  const [containers, setContainers] = useState([]);
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/containers")
+      .then(res => setContainers(res.data))
+      .catch(err => console.error("Error fetching containers:", err));
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <h1>Container Manager</h1>
+      <ul>
+        {containers.map(container => (
+          <li key={container.Id}>
+            {container.Names[0]} - {container.State}
+            <button onClick={() => axios.post(`http://localhost:5000/api/containers/${container.Id}/start`)}>Start</button>
+            <button onClick={() => axios.post(`http://localhost:5000/api/containers/${container.Id}/stop`)}>Stop</button>
+            <button onClick={() => axios.delete(`http://localhost:5000/api/containers/${container.Id}`)}>Remove</button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
