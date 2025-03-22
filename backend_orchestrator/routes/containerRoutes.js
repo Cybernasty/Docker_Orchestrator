@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ Start a container
+// Start a container
 router.post("/:id/start", async (req, res) => {
   try {
     await startContainer(req.params.id);
@@ -33,7 +33,7 @@ router.post("/:id/start", async (req, res) => {
   }
 });
 
-// ✅ Stop a container
+// Stop a container
 router.post("/:id/stop", async (req, res) => {
   try {
     await stopContainer(req.params.id);
@@ -43,7 +43,7 @@ router.post("/:id/stop", async (req, res) => {
   }
 });
 
-// ✅ Remove a container
+// Remove a container
 router.delete("/:id", async (req, res) => {
   try {
     await removeContainer(req.params.id);

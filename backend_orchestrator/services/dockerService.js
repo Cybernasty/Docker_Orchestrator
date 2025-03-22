@@ -3,7 +3,7 @@ import Container from "../models/containers.model.js";
 
 const docker = new Docker({ socketPath: "\\\\.\\pipe\\docker_engine" });
 
-// ✅ Sync containers to the database
+// Sync containers to the database
 export const syncContainersToDB = async () => {
   try {
     // Fetch all containers (including stopped ones)
@@ -26,24 +26,24 @@ export const syncContainersToDB = async () => {
       );
     }
 
-    console.log("✅ Containers synced to DB successfully!");
+    console.log("Containers synced to DB successfully!");
   } catch (error) {
-    console.error("❌ Error syncing containers to DB:", error.message);
+    console.error("Error syncing containers to DB:", error.message);
   }
 };
 
-// ✅ Fetch containers from the database
+// Fetch containers from the database
 export const fetchContainers = async () => {
   try {
     const containers = await Container.find();
     return containers;
   } catch (error) {
-    console.error("❌ Error fetching containers from DB:", error.message);
+    console.error("Error fetching containers from DB:", error.message);
     throw error;
   }
 };
 
-// ✅ Start a container
+// Start a container
 export const startContainer = async (containerId) => {
   try {
     const container = docker.getContainer(containerId);
@@ -55,14 +55,14 @@ export const startContainer = async (containerId) => {
       { status: "running" }
     );
 
-    console.log(`✅ Container ${containerId} started.`);
+    console.log(`Container ${containerId} started.`);
   } catch (error) {
-    console.error(`❌ Error starting container ${containerId}:`, error.message);
+    console.error(`Error starting container ${containerId}:`, error.message);
     throw error;
   }
 };
 
-// ✅ Stop a container
+// Stop a container
 export const stopContainer = async (containerId) => {
   try {
     const container = docker.getContainer(containerId);
@@ -74,14 +74,14 @@ export const stopContainer = async (containerId) => {
       { status: "stopped" }
     );
 
-    console.log(`✅ Container ${containerId} stopped.`);
+    console.log(`Container ${containerId} stopped.`);
   } catch (error) {
-    console.error(`❌ Error stopping container ${containerId}:`, error.message);
+    console.error(`Error stopping container ${containerId}:`, error.message);
     throw error;
   }
 };
 
-// ✅ Remove a container
+// Remove a container
 export const removeContainer = async (containerId) => {
   try {
     const container = docker.getContainer(containerId);
@@ -90,12 +90,12 @@ export const removeContainer = async (containerId) => {
     // Remove from database
     await Container.deleteOne({ containerId });
 
-    console.log(`✅ Container ${containerId} removed.`);
+    console.log(`Container ${containerId} removed.`);
   } catch (error) {
-    console.error(`❌ Error removing container ${containerId}:`, error.message);
+    console.error(`Error removing container ${containerId}:`, error.message);
     throw error;
   }
 };
 
-// ✅ Automatically sync containers every 30 seconds
+// Automatically sync containers every 30 seconds
 setInterval(syncContainersToDB, 30000);
