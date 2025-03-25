@@ -97,5 +97,43 @@ export const removeContainer = async (containerId) => {
   }
 };
 
+export const execCommandInContainer = async (containerId, command) => {
+  try {
+    const container = docker.getContainer(containerId);
+
+    // Create an exec instance in the container
+    const exec = await container.exec({
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: true, // Enable interactive shell
+      Cmd: ["/bin/sh", "-c", command], // Run the command
+    });
+
+    // Start the exec session and capture output
+    const stream = await exec.start({ stdin: true });
+
+    return new Promise((resolve, reject) => {
+      let output = "";
+      
+      stream.on("data", (chunk) => {
+        output += chunk.toString(); // Capture output
+      });
+
+      stream.on("end", () => {
+        resolve(output.trim());
+      });
+
+      stream.on("error", (err) => {
+        reject(`Error executing command: ${err.message}`);
+      });
+    });
+
+  } catch (error) {
+    console.error(`Error executing command in container ${containerId}:`, error.message);
+    throw error;
+  }
+};
+
 // Automatically sync containers every 30 seconds
 setInterval(syncContainersToDB, 30000);

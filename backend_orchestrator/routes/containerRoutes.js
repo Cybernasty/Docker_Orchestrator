@@ -53,4 +53,18 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+
+router.post("/:containerId/exec", async (req, res) => {
+  const { containerId } = req.params;
+  const { command } = req.body; // Command from frontend
+
+  try {
+    const output = await execCommandInContainer(containerId, command);
+    res.json({ success: true, output });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
 export default router;

@@ -35,12 +35,14 @@ button {
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
+  transition: background 0.3s ease;
 }
 
 button:hover {
   opacity: 0.8;
 }
 
+/* Button Styles */
 .start {
   background-color: #28a745;
   color: white;
@@ -54,4 +56,11 @@ button:hover {
 .remove {
   background-color: #6c757d;
   color: white;
+}
+
+/* New Shell Button */
+.shell {
+  background-color: #ffc107;
+  color: black;
+  font-weight: bold;
 }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import TerminalComponent from "./TerminalComponent"; // Import the terminal
 import "../../App.css"; // Ensure styling applies
 
 const ContainersList = () => {
   const [containers, setContainers] = useState([]);
+  const [selectedContainer, setSelectedContainer] = useState(null);
 
   // Fetch Containers
   const fetchContainers = () => {
@@ -19,7 +21,6 @@ const ContainersList = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Container Actions
   const handleStart = (containerId) => {
     axios.post(`http://localhost:5000/api/containers/${containerId}/start`)
       .then(() => fetchContainers())
@@ -59,6 +60,7 @@ const ContainersList = () => {
                   <button className="start" onClick={() => handleStart(container.containerId)}>Start</button>
                   <button className="stop" onClick={() => handleStop(container.containerId)}>Stop</button>
                   <button className="remove" onClick={() => handleRemove(container.containerId)}>Remove</button>
+                  <button className="shell" onClick={() => setSelectedContainer(container.containerId)}>Shell</button>
                 </td>
               </tr>
             ))
@@ -69,6 +71,10 @@ const ContainersList = () => {
           )}
         </tbody>
       </table>
+
+      {selectedContainer && (
+        <TerminalComponent containerId={selectedContainer} onClose={() => setSelectedContainer(null)} />
+      )}
     </div>
   );
 };
