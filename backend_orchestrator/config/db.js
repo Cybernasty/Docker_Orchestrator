@@ -1,15 +1,40 @@
 import mongoose from "mongoose"
-import dotenv from "dotenv";
+import config from "./config.js";
 
-dotenv.config();
 export const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        const conn = await mongoose.connect(config.mongoUri, {
+            // MongoDB connection options for better reliability
+            maxPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000
+        });
+        
+        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+        
+        // Handle connection events
+        mongoose.connection.on('error', (err) => {
+            console.error('❌ MongoDB connection error:', err);
+        });
+        
+        mongoose.connection.on('disconnected', () => {
+            console.warn('⚠️ MongoDB disconnected');
+        });
+        
+        mongoose.connection.on('reconnected', () => {
+            console.log('🔄 MongoDB reconnected');
+        });
+        
+        // Graceful shutdown
+        process.on('SIGINT', async () => {
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed through app termination');
+            process.exit(0);
+        });
+        
     } catch (error) {
-        console.error(`Error: ${error.msg}`);
-        process.exit(1); // 1 failure
+        console.error(`❌ MongoDB connection error: ${error.message}`);
+        process.exit(1);
     }
-
-}
+};
 

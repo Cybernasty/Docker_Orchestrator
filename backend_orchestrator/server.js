@@ -1,78 +1,272 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/db.js";
 import { WebSocketServer } from "ws";
 import { spawn } from "child_process";
-import http from "http"; // Create a server to attach WebSockets
-import containerRoutes from "./routes/containerRoutes.js"; 
+import http from "http";
+import containerRoutes from "./routes/containerRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { errorHandler } from "./utils/errors.js";
+import config from "./config/config.js";
+import { authenticateJWT } from "./middleware/auth.js";
+import jwt from "jsonwebtoken";
 
 const app = express();
-const server = http.createServer(app); // Create an HTTP server
-const wss = new WebSocketServer({ server }); // Attach WebSocket to HTTP server
+const server = http.createServer(app);
 
-app.use(cors());
-app.use(express.json());
+// Rate limiting middleware
+const limiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  message: {
+    error: {
+      name: 'RateLimitError',
+      message: 'Too many requests, please try again later.',
+      timestamp: new Date().toISOString()
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
+// Apply rate limiting to all routes
+app.use(limiter);
 
-app.use("/api/containers", containerRoutes);
+// CORS configuration
+app.use(cors({
+  origin: config.corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-console.log(process.env.MONGO_URI);
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Connect to the database
-connectDB();
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.nodeEnv
+  });
+});
 
+// Auth routes (public)
+app.use("/api/auth", authRoutes);
 
-// ✅ WebSocket connection for container shell access
+// Protect container routes
+app.use("/api/containers", authenticateJWT, containerRoutes);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: {
+      name: 'NotFoundError',
+      message: `Route ${req.originalUrl} not found`,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// WebSocket server setup
+const wss = new WebSocketServer({ server });
+
+// WebSocket connection handling
 wss.on("connection", (ws, req) => {
-  console.log("🔗 New WebSocket connection established");
+  // Parse token from query string
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get("token");
+  let user = null;
 
-  ws.on("message", (message) => {
+  if (!token) {
+    ws.send(JSON.stringify({ error: "Missing authentication token", timestamp: new Date().toISOString() }));
+    ws.close();
+    return;
+  }
+
+  try {
+    user = jwt.verify(token, config.jwtSecret);
+    // Optionally, you can check user.id/email here
+  } catch (err) {
+    ws.send(JSON.stringify({ error: "Invalid or expired token", timestamp: new Date().toISOString() }));
+    ws.close();
+    return;
+  }
+
+  console.log(`🔗 WebSocket connection authenticated for user: ${user.email}`);
+
+  let shell = null;
+  let isAuthenticated = true;
+
+  // Set up heartbeat to detect disconnected clients
+  const heartbeat = () => {
+    ws.isAlive = true;
+  };
+  
+  ws.isAlive = true;
+  ws.on('pong', heartbeat);
+
+  ws.once("message", (message) => {
+    let containerId, command;
     try {
-      const { containerId, command } = JSON.parse(message);
-      console.log(`Executing command: ${command} on container ${containerId}`);
-
+      const data = JSON.parse(message);
+      ({ containerId, command } = data);
+      
+      // Validate container ID and command
       if (!containerId || !command) {
-        ws.send(JSON.stringify({ error: "Missing containerId or command" }));
+        ws.send(JSON.stringify({ 
+          error: "Missing containerId or command",
+          timestamp: new Date().toISOString()
+        }));
+        ws.close();
         return;
       }
 
-      // Spawn Docker exec process
-      const shell = spawn("docker", [
-        "exec",
-        "-it",
-        containerId,
-        "sh"
-      ]);
+      console.log(`Executing command: ${command} on container ${containerId}`);
+      isAuthenticated = true;
 
-      // Send output from the container to the WebSocket client
-      shell.stdout.on("data", (data) => {
-        ws.send(JSON.stringify({ output: data.toString() }));
-      });
-
-      shell.stderr.on("data", (data) => {
-        ws.send(JSON.stringify({ error: data.toString() }));
-      });
-
-      shell.on("close", (code) => {
-        ws.send(JSON.stringify({ message: `Shell closed with code ${code}` }));
-      });
-
-      // Send user input to the container shell
-      ws.on("message", (input) => {
-        shell.stdin.write(input + "\n");
-      });
-
-    } catch (error) {
-      ws.send(JSON.stringify({ error: "Invalid message format" }));
+    } catch (parseError) {
+      ws.send(JSON.stringify({ 
+        error: "Invalid message format",
+        timestamp: new Date().toISOString()
+      }));
+      ws.close();
+      return;
     }
+
+    // Spawn Docker exec process
+    shell = spawn("docker", [
+      "exec",
+      "-it",
+      containerId,
+      "sh"
+    ]);
+
+    // Send output from the container to the WebSocket client
+    shell.stdout.on("data", (data) => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ 
+          output: data.toString(),
+          timestamp: new Date().toISOString()
+        }));
+      }
+    });
+
+    shell.stderr.on("data", (data) => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ 
+          error: data.toString(),
+          timestamp: new Date().toISOString()
+        }));
+      }
+    });
+
+    shell.on("close", (code) => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ 
+          message: `Shell closed with code ${code}`,
+          timestamp: new Date().toISOString()
+        }));
+      }
+      ws.close();
+    });
+
+    shell.on("error", (error) => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ 
+          error: `Shell error: ${error.message}`,
+          timestamp: new Date().toISOString()
+        }));
+      }
+      ws.close();
+    });
+
+    // Forward subsequent messages as shell input
+    ws.on("message", (input) => {
+      if (shell && !shell.killed && isAuthenticated) {
+        try {
+          const inputStr = input.toString();
+          shell.stdin.write(inputStr + "\n");
+        } catch (error) {
+          console.error("Error writing to shell:", error);
+        }
+      }
+    });
   });
 
   ws.on("close", () => {
     console.log("❌ WebSocket connection closed");
+    if (shell && !shell.killed) {
+      shell.kill();
+    }
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+    if (shell && !shell.killed) {
+      shell.kill();
+    }
   });
 });
 
-app.listen(5000, () => {
-  console.log("Server started at http://localhost:5000");
+// WebSocket heartbeat interval
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log("Terminating inactive WebSocket connection");
+      return ws.terminate();
+    }
+    
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, config.wsHeartbeatInterval);
+
+// Clean up on server close
+wss.on('close', () => {
+  clearInterval(heartbeatInterval);
+});
+
+// Connect to database
+connectDB();
+
+// Start server
+server.listen(config.port, () => {
+  console.log(`🚀 Server started at http://localhost:${config.port}`);
+  console.log(`📊 Environment: ${config.nodeEnv}`);
+  console.log(`🔗 WebSocket server ready`);
+  console.log(`🐳 Docker socket: ${config.dockerSocket}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });

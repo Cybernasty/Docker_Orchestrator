@@ -1,70 +1,114 @@
 import express from "express";
-import { syncContainersToDB, startContainer, stopContainer, removeContainer } from "../services/dockerService.js";
-import Container from "../models/containers.model.js";
+import { 
+  syncContainersToDB, 
+  startContainer, 
+  stopContainer, 
+  removeContainer,
+  fetchContainers,
+  getContainerById,
+  execCommandInContainer,
+  getContainerLogs,
+  getContainerStats
+} from "../services/dockerService.js";
+import { asyncHandler } from "../utils/errors.js";
+import { 
+  validateContainerOperation, 
+  validateCommandExecution,
+  validateContainerCreation 
+} from "../middleware/validation.js";
 
 const router = express.Router();
 
-router.get("/sync", async (req, res) => {
-  try {
-    await syncContainersToDB();  
-    res.status(200).json({ message: "Containers synced successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to sync containers" });
-  }
-});
+// Sync containers with database
+router.get("/sync", asyncHandler(async (req, res) => {
+  await syncContainersToDB();
+  res.status(200).json({ 
+    message: "Containers synced successfully",
+    timestamp: new Date().toISOString()
+  });
+}));
 
-// Retrieve all containers from DB
-router.get("/", async (req, res) => {
-  try {
-    const containers = await Container.find();
-    res.status(200).json(containers);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching containers" });
-  }
-});
+// Get all containers
+router.get("/", asyncHandler(async (req, res) => {
+  const containers = await fetchContainers();
+  res.status(200).json({
+    containers,
+    count: containers.length,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Get a single container by ID
+router.get("/:containerId", validateContainerOperation, asyncHandler(async (req, res) => {
+  const container = await getContainerById(req.params.containerId);
+  res.status(200).json({
+    container,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Get container logs
+router.get("/:containerId/logs", validateContainerOperation, asyncHandler(async (req, res) => {
+  const { tail = 100 } = req.query;
+  const logs = await getContainerLogs(req.params.containerId, parseInt(tail));
+  res.status(200).json({
+    logs,
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Get container stats
+router.get("/:containerId/stats", validateContainerOperation, asyncHandler(async (req, res) => {
+  const stats = await getContainerStats(req.params.containerId);
+  res.status(200).json({
+    stats,
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
 
 // Start a container
-router.post("/:id/start", async (req, res) => {
-  try {
-    await startContainer(req.params.id);
-    res.status(200).json({ message: "Container started successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Error starting container" });
-  }
-});
+router.post("/:containerId/start", validateContainerOperation, asyncHandler(async (req, res) => {
+  await startContainer(req.params.containerId);
+  res.status(200).json({ 
+    message: "Container started successfully",
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
 
 // Stop a container
-router.post("/:id/stop", async (req, res) => {
-  try {
-    await stopContainer(req.params.id);
-    res.status(200).json({ message: "Container stopped successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Error stopping container" });
-  }
-});
+router.post("/:containerId/stop", validateContainerOperation, asyncHandler(async (req, res) => {
+  await stopContainer(req.params.containerId);
+  res.status(200).json({ 
+    message: "Container stopped successfully",
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
 
 // Remove a container
-router.delete("/:id", async (req, res) => {
-  try {
-    await removeContainer(req.params.id);
-    res.status(200).json({ message: "Container removed successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Error removing container" });
-  }
-});
+router.delete("/:containerId", validateContainerOperation, asyncHandler(async (req, res) => {
+  await removeContainer(req.params.containerId);
+  res.status(200).json({ 
+    message: "Container removed successfully",
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
 
-
-router.post("/:containerId/exec", async (req, res) => {
-  const { containerId } = req.params;
-  const { command } = req.body; // Command from frontend
-
-  try {
-    const output = await execCommandInContainer(containerId, command);
-    res.json({ success: true, output });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
+// Execute command in container
+router.post("/:containerId/exec", validateContainerOperation, validateCommandExecution, asyncHandler(async (req, res) => {
+  const { command } = req.body;
+  const output = await execCommandInContainer(req.params.containerId, command);
+  res.status(200).json({ 
+    success: true, 
+    output,
+    command,
+    containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
 
 export default router;

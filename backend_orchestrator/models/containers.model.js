@@ -1,16 +1,74 @@
 import mongoose from "mongoose";
 
 const ContainerSchema = new mongoose.Schema({
-  containerId: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  image: { type: String, required: true },
-  status: { type: String, enum: ["running", "stopped", "restarting", "exited"], required: true },
-  createdAt: { type: Date, default: Date.now },
-  site: { type: mongoose.Schema.Types.ObjectId, ref: "Site", required: true },
-  cpuUsage: { type: Number, default: null },
-  memoryUsage: { type: Number, default: null },
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }
+  containerId: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    index: true 
+  },
+  name: { 
+    type: String, 
+    required: true,
+    trim: true 
+  },
+  image: { 
+    type: String, 
+    required: true,
+    trim: true 
+  },
+  status: { 
+    type: String, 
+    enum: ["running", "stopped", "restarting", "exited", "created", "paused"], 
+    required: true,
+    default: "created"
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updatedAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  site: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Site", 
+    required: false // Made optional for now
+  },
+  cpuUsage: { 
+    type: Number, 
+    default: 0 
+  },
+  memoryUsage: { 
+    type: Number, 
+    default: 0 
+  },
+  memoryLimit: { 
+    type: Number, 
+    default: 0 
+  },
+  owner: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User", 
+    required: false // Made optional for now
+  },
+  ports: [{
+    hostPort: String,
+    containerPort: String,
+    protocol: { type: String, enum: ["tcp", "udp"], default: "tcp" }
+  }],
+  environment: [{
+    key: String,
+    value: String
+  }]
+}, {
+  timestamps: true // Automatically manage createdAt and updatedAt
 });
+
+// Add indexes for better query performance
+ContainerSchema.index({ status: 1 });
+ContainerSchema.index({ createdAt: -1 });
 
 const Container = mongoose.model("Container", ContainerSchema);
 export default Container;

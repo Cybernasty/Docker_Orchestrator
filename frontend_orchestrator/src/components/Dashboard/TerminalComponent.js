@@ -1,17 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+
 const TerminalComponent = ({ containerId }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const ws = useRef(null);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimeout = useRef(null);
 
-  useEffect(() => {
-    // ✅ Establish WebSocket connection
-    ws.current = new WebSocket("ws://localhost:5000");
+  const connectWebSocket = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setMessages(["❌ No authentication token found. Please log in."]);
+      return;
+    }
+    ws.current = new window.WebSocket(`ws://localhost:5000?token=${token}`);
 
     ws.current.onopen = () => {
-      console.log("✅ Connected to WebSocket server");
-      setMessages((prev) => [...prev, "Connected to container shell..."]);
+      setMessages((prev) => [...prev, reconnectAttempts.current > 0 ? "🔄 Reconnected to container shell..." : "Connected to container shell..."]);
+      reconnectAttempts.current = 0;
     };
 
     ws.current.onmessage = (event) => {
@@ -28,17 +37,34 @@ const TerminalComponent = ({ containerId }) => {
     };
 
     ws.current.onclose = () => {
-      console.log("❌ WebSocket disconnected");
-      setMessages((prev) => [...prev, "WebSocket disconnected"]);
+      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+        const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts.current); // Exponential backoff
+        setMessages((prev) => [...prev, `🔌 Disconnected. Attempting to reconnect in ${delay / 1000}s...`]);
+        reconnectTimeout.current = setTimeout(() => {
+          reconnectAttempts.current += 1;
+          connectWebSocket();
+        }, delay);
+      } else {
+        setMessages((prev) => [...prev, "❌ Could not reconnect to container shell. Please refresh the page."]);
+      }
     };
 
-    return () => {
-      ws.current.close();
+    ws.current.onerror = (err) => {
+      setMessages((prev) => [...prev, "❌ WebSocket error occurred."]);
     };
-  }, []);
+  };
+
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      if (ws.current) ws.current.close();
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+    };
+    // eslint-disable-next-line
+  }, [containerId]);
 
   const sendCommand = () => {
-    if (input.trim() && ws.current.readyState === WebSocket.OPEN) {
+    if (input.trim() && ws.current && ws.current.readyState === WebSocket.OPEN) {
       const commandData = JSON.stringify({ containerId, command: input });
       ws.current.send(commandData);
       setMessages((prev) => [...prev, `> ${input}`]);
