@@ -31,7 +31,7 @@ router.post("/register", asyncHandler(async (req, res) => {
   res.status(201).json({
     message: "Registration successful",
     token,
-    user: { id: user._id, email: user.email }
+    user: { id: user._id, email: user.email, role: user.role }
   });
 }));
 
@@ -53,7 +53,7 @@ router.post("/login", asyncHandler(async (req, res) => {
   res.status(200).json({
     message: "Login successful",
     token,
-    user: { id: user._id, email: user.email }
+    user: { id: user._id, email: user.email, role: user.role }
   });
 }));
 

@@ -20,7 +20,8 @@ export const AuthProvider = ({ children }) => {
     setUser({
       token: res.data.token,
       email: res.data.user.email,
-      id: res.data.user.id
+      id: res.data.user.id,
+      role: res.data.user.role
     });
   };
 

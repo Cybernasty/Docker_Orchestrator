@@ -1,7 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd } from "react-icons/fa";
+import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd, FaUserPlus } from "react-icons/fa";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
 const Sidebar = () => {
+  const { user } = useContext(AuthContext);
   return (
     <aside className="bg-blue-900 text-white w-64 min-h-screen flex flex-col border-r border-blue-800">
       <div className="flex items-center px-6 py-4 border-b border-blue-800">
@@ -19,6 +22,9 @@ const Sidebar = () => {
         <NavLink to="/images" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaImages className="mr-3" /> Images</NavLink>
         <NavLink to="#networks" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaNetworkWired className="mr-3" /> Networks</NavLink>
         <NavLink to="#volumes" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaHdd className="mr-3" /> Volumes</NavLink>
+        {user?.role === "admin" && (
+          <NavLink to="/admin/add-user" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaUserPlus className="mr-3" /> Add User</NavLink>
+        )}
       </nav>
       <div className="mt-auto px-6 py-4 text-xs text-blue-200 border-t border-blue-800">orchestrator.io v1.0.0</div>
     </aside>

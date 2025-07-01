@@ -8,6 +8,7 @@ import ContainersPage from "./components/Containers/ContainersPage";
 import ImagesPage from "./components/Images/ImagesPage";
 import ProfilePage from "./components/Profile/ProfilePage";
 import SettingsPage from "./components/Settings/SettingsPage";
+import AddUser from "./components/Admin/AddUser";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="/images" element={<ImagesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin/add-user" element={<AddUser />} />
           {/* <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} /> */}
         </Routes>
       </Router>
