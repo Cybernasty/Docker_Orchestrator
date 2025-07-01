@@ -366,3 +366,15 @@ export const getContainerStats = async (containerId) => {
 
 // Automatically sync containers based on config
 setInterval(syncContainersToDB, config.syncInterval);
+
+// List Docker images
+export const listImages = async () => {
+  try {
+    await checkDockerDaemon();
+    const images = await docker.listImages();
+    return images;
+  } catch (error) {
+    console.error("❌ Error listing images:", error.message);
+    throw new DockerError(`Failed to list images: ${error.message}`, 500, "images");
+  }
+};

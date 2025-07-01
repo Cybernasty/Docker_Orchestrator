@@ -8,7 +8,8 @@ import {
   getContainerById,
   execCommandInContainer,
   getContainerLogs,
-  getContainerStats
+  getContainerStats,
+  listImages
 } from "../services/dockerService.js";
 import { asyncHandler } from "../utils/errors.js";
 import { 
@@ -34,6 +35,16 @@ router.get("/", asyncHandler(async (req, res) => {
   res.status(200).json({
     containers,
     count: containers.length,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// List Docker images
+router.get("/images", asyncHandler(async (req, res) => {
+  const images = await listImages();
+  res.status(200).json({
+    images,
+    count: images.length,
     timestamp: new Date().toISOString()
   });
 }));
