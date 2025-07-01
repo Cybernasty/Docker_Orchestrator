@@ -18,4 +18,11 @@ export const authenticateJWT = async (req, res, next) => {
   } catch (err) {
     return res.status(401).json({ error: { message: "Invalid or expired token" } });
   }
+};
+
+export const authorizeRoles = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ error: { message: "Forbidden: insufficient permissions" } });
+  }
+  next();
 }; 

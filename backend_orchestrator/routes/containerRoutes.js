@@ -17,11 +17,12 @@ import {
   validateCommandExecution,
   validateContainerCreation 
 } from "../middleware/validation.js";
+import { authenticateJWT, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Sync containers with database
-router.get("/sync", asyncHandler(async (req, res) => {
+// Sync containers with database (admin only)
+router.get("/sync", authenticateJWT, authorizeRoles("admin"), asyncHandler(async (req, res) => {
   await syncContainersToDB();
   res.status(200).json({ 
     message: "Containers synced successfully",
@@ -29,8 +30,8 @@ router.get("/sync", asyncHandler(async (req, res) => {
   });
 }));
 
-// Get all containers
-router.get("/", asyncHandler(async (req, res) => {
+// Get all containers (all roles)
+router.get("/", authenticateJWT, authorizeRoles("admin", "operator", "viewer"), asyncHandler(async (req, res) => {
   const containers = await fetchContainers();
   res.status(200).json({
     containers,
@@ -39,8 +40,8 @@ router.get("/", asyncHandler(async (req, res) => {
   });
 }));
 
-// List Docker images
-router.get("/images", asyncHandler(async (req, res) => {
+// List Docker images (all roles)
+router.get("/images", authenticateJWT, authorizeRoles("admin", "operator", "viewer"), asyncHandler(async (req, res) => {
   const images = await listImages();
   res.status(200).json({
     images,
@@ -49,8 +50,8 @@ router.get("/images", asyncHandler(async (req, res) => {
   });
 }));
 
-// Get a single container by ID
-router.get("/:containerId", validateContainerOperation, asyncHandler(async (req, res) => {
+// Get a single container by ID (all roles)
+router.get("/:containerId", authenticateJWT, authorizeRoles("admin", "operator", "viewer"), validateContainerOperation, asyncHandler(async (req, res) => {
   const container = await getContainerById(req.params.containerId);
   res.status(200).json({
     container,
@@ -58,8 +59,8 @@ router.get("/:containerId", validateContainerOperation, asyncHandler(async (req,
   });
 }));
 
-// Get container logs
-router.get("/:containerId/logs", validateContainerOperation, asyncHandler(async (req, res) => {
+// Get container logs (all roles)
+router.get("/:containerId/logs", authenticateJWT, authorizeRoles("admin", "operator", "viewer"), validateContainerOperation, asyncHandler(async (req, res) => {
   const { tail = 100 } = req.query;
   const logs = await getContainerLogs(req.params.containerId, parseInt(tail));
   res.status(200).json({
@@ -69,8 +70,8 @@ router.get("/:containerId/logs", validateContainerOperation, asyncHandler(async 
   });
 }));
 
-// Get container stats
-router.get("/:containerId/stats", validateContainerOperation, asyncHandler(async (req, res) => {
+// Get container stats (all roles)
+router.get("/:containerId/stats", authenticateJWT, authorizeRoles("admin", "operator", "viewer"), validateContainerOperation, asyncHandler(async (req, res) => {
   const stats = await getContainerStats(req.params.containerId);
   res.status(200).json({
     stats,
@@ -79,8 +80,8 @@ router.get("/:containerId/stats", validateContainerOperation, asyncHandler(async
   });
 }));
 
-// Start a container
-router.post("/:containerId/start", validateContainerOperation, asyncHandler(async (req, res) => {
+// Start a container (admin/operator)
+router.post("/:containerId/start", authenticateJWT, authorizeRoles("admin", "operator"), validateContainerOperation, asyncHandler(async (req, res) => {
   await startContainer(req.params.containerId);
   res.status(200).json({ 
     message: "Container started successfully",
@@ -89,8 +90,8 @@ router.post("/:containerId/start", validateContainerOperation, asyncHandler(asyn
   });
 }));
 
-// Stop a container
-router.post("/:containerId/stop", validateContainerOperation, asyncHandler(async (req, res) => {
+// Stop a container (admin/operator)
+router.post("/:containerId/stop", authenticateJWT, authorizeRoles("admin", "operator"), validateContainerOperation, asyncHandler(async (req, res) => {
   await stopContainer(req.params.containerId);
   res.status(200).json({ 
     message: "Container stopped successfully",
@@ -99,8 +100,8 @@ router.post("/:containerId/stop", validateContainerOperation, asyncHandler(async
   });
 }));
 
-// Remove a container
-router.delete("/:containerId", validateContainerOperation, asyncHandler(async (req, res) => {
+// Remove a container (admin/operator)
+router.delete("/:containerId", authenticateJWT, authorizeRoles("admin", "operator"), validateContainerOperation, asyncHandler(async (req, res) => {
   await removeContainer(req.params.containerId);
   res.status(200).json({ 
     message: "Container removed successfully",
@@ -109,8 +110,8 @@ router.delete("/:containerId", validateContainerOperation, asyncHandler(async (r
   });
 }));
 
-// Execute command in container
-router.post("/:containerId/exec", validateContainerOperation, validateCommandExecution, asyncHandler(async (req, res) => {
+// Execute command in container (admin/operator)
+router.post("/:containerId/exec", authenticateJWT, authorizeRoles("admin", "operator"), validateContainerOperation, validateCommandExecution, asyncHandler(async (req, res) => {
   const { command } = req.body;
   const output = await execCommandInContainer(req.params.containerId, command);
   res.status(200).json({ 

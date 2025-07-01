@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import TerminalComponent from "./TerminalComponent"; // Import the terminal
 import { FaPlay, FaStop, FaTrash, FaTerminal, FaFileAlt, FaChartBar } from "react-icons/fa";
+import { AuthContext } from "../../context/AuthContext";
 import "../../App.css"; // Ensure styling applies
 
 const ContainersList = () => {
+  const { user } = useContext(AuthContext);
   const [containers, setContainers] = useState([]);
   const [selectedContainer, setSelectedContainer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -161,7 +163,9 @@ const ContainersList = () => {
                 <td className="px-4 py-2 flex gap-2">
                   <button className="btn btn-ghost btn-xs" title="Logs" onClick={() => handleShowLogs(container.containerId)}><FaFileAlt /></button>
                   <button className="btn btn-ghost btn-xs" title="Stats" onClick={() => handleShowStats(container.containerId)}><FaChartBar /></button>
-                  <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
+                  {user?.role === "admin" || user?.role === "operator" ? (
+                    <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
+                  ) : null}
                   <button className="btn btn-ghost btn-xs" title="Start" onClick={() => handleStart(container.containerId)}><FaPlay /></button>
                   <button className="btn btn-ghost btn-xs" title="Stop" onClick={() => handleStop(container.containerId)}><FaStop /></button>
                   <button className="btn btn-ghost btn-xs" title="Remove" onClick={() => handleRemove(container.containerId)}><FaTrash /></button>
