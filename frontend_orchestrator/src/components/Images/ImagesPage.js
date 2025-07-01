@@ -10,9 +10,6 @@ const ImagesPage = () => {
         <Topbar />
         <main className="flex-1 p-8">
           <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <div className="font-semibold text-lg mb-2 flex items-center">
-              <span className="mr-2 text-blue-600">🖼️</span> Images
-            </div>
             <ImagesList />
           </div>
         </main>

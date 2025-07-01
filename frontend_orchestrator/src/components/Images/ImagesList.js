@@ -38,43 +38,51 @@ const ImagesList = () => {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-        <strong>Error:</strong> {error}
-        <button onClick={() => setError(null)} className="float-right font-bold">×</button>
+      <div className="alert alert-error shadow-lg mb-4">
+        <div>
+          <span>Error: {error}</span>
+          <button onClick={() => setError(null)} className="btn btn-sm btn-ghost ml-4">×</button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full bg-white border border-gray-300">
+      <table className="min-w-full bg-white border border-gray-200 rounded-lg">
         <thead>
-          <tr className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-t-lg">
-            <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repository</th>
-            <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
-            <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image ID</th>
-            <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-            <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+          <tr className="bg-gray-100 text-xs uppercase text-gray-500">
+            <th className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></th>
+            <th className="px-4 py-2">Repository</th>
+            <th className="px-4 py-2">Tag</th>
+            <th className="px-4 py-2">Image ID</th>
+            <th className="px-4 py-2">Size</th>
+            <th className="px-4 py-2">Created</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {images.length > 0 ? (
-            images.map((img) => (
+            images.map((img) =>
               (img.RepoTags || ["<none>:<none>"]).map((repoTag, idx) => {
                 const [repo, tag] = repoTag.split(":");
                 return (
                   <tr key={img.Id + repoTag + idx} className="hover:bg-blue-50 even:bg-gray-50 transition-all duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{repo}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tag}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{img.Id.substring(7, 19)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatBytes(img.Size)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(img.Created * 1000).toLocaleString()}</td>
+                    <td className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></td>
+                    <td className="px-4 py-2">
+                      <a href="#" className="text-blue-600 hover:underline font-medium">{repo}</a>
+                    </td>
+                    <td className="px-4 py-2">{tag}</td>
+                    <td className="px-4 py-2 font-mono">{img.Id.substring(7, 19)}</td>
+                    <td className="px-4 py-2">{formatBytes(img.Size)}</td>
+                    <td className="px-4 py-2">{new Date(img.Created * 1000).toLocaleString()}</td>
                   </tr>
                 );
               })
-            ))
+            )
           ) : (
-            <tr><td colSpan={5} className="text-center py-8 text-gray-400">No images found.</td></tr>
+            <tr>
+              <td colSpan={6} className="text-center py-8 text-gray-400">No images found.</td>
+            </tr>
           )}
         </tbody>
       </table>

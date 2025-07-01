@@ -108,18 +108,18 @@ const ContainersList = () => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusBadge = (status) => {
     switch (status) {
       case 'running':
-        return 'text-green-600';
+        return <span className="badge badge-success badge-sm">running</span>;
       case 'stopped':
-        return 'text-red-600';
+        return <span className="badge badge-error badge-sm">stopped</span>;
       case 'restarting':
-        return 'text-yellow-600';
+        return <span className="badge badge-warning badge-sm">restarting</span>;
       case 'exited':
-        return 'text-gray-600';
+        return <span className="badge badge-ghost badge-sm">exited</span>;
       default:
-        return 'text-gray-600';
+        return <span className="badge badge-ghost badge-sm">{status}</span>;
     }
   };
 
@@ -133,147 +133,92 @@ const ContainersList = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading containers...</div>
-      </div>
+      <div className="flex justify-center items-center h-64 text-lg">Loading containers...</div>
     );
   }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Containers List</h2>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <strong>Error:</strong> {error}
-          <button 
-            onClick={() => setError(null)}
-            className="float-right font-bold"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-300">
-          <thead>
-            <tr className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-t-lg">
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Image
-              </th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                CPU Usage
-              </th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Memory Usage
-              </th>
-              <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {containers.length > 0 ? (
-              containers.map(container => (
-                <tr key={container.containerId} className="hover:bg-blue-50 even:bg-gray-50 transition-all duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {container.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {container.image}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(container.status)}`}>
-                      {container.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {container.cpuUsage ? `${container.cpuUsage.toFixed(2)}%` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {container.memoryUsage ? formatBytes(container.memoryUsage) : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button title="Start" className="bg-green-500 hover:bg-green-700 text-white p-2 rounded shadow transition" onClick={() => handleStart(container.containerId)} disabled={container.status === 'running'}>
-                        <FaPlay />
-                      </button>
-                      <button title="Stop" className="bg-yellow-500 hover:bg-yellow-700 text-white p-2 rounded shadow transition" onClick={() => handleStop(container.containerId)} disabled={container.status === 'stopped'}>
-                        <FaStop />
-                      </button>
-                      <button title="Remove" className="bg-red-500 hover:bg-red-700 text-white p-2 rounded shadow transition" onClick={() => handleRemove(container.containerId)}>
-                        <FaTrash />
-                      </button>
-                      <button title="Shell" className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded shadow transition" onClick={() => setSelectedContainer(container.containerId)}>
-                        <FaTerminal />
-                      </button>
-                      <button title="Logs" className="bg-gray-500 hover:bg-gray-700 text-white p-2 rounded shadow transition" onClick={() => handleShowLogs(container.containerId)}>
-                        <FaFileAlt />
-                      </button>
-                      <button title="Stats" className="bg-purple-500 hover:bg-purple-700 text-white p-2 rounded shadow transition" onClick={() => handleShowStats(container.containerId)}>
-                        <FaChartBar />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                  No containers found
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+        <thead>
+          <tr className="bg-gray-100 text-xs uppercase text-gray-500">
+            <th className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></th>
+            <th className="px-4 py-2">Name</th>
+            <th className="px-4 py-2">State</th>
+            <th className="px-4 py-2">Quick Actions</th>
+            <th className="px-4 py-2">Image</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {containers.length > 0 ? (
+            containers.map(container => (
+              <tr key={container.containerId} className="hover:bg-blue-50 even:bg-gray-50 transition-all duration-150">
+                <td className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></td>
+                <td className="px-4 py-2">
+                  <a href="#" className="text-blue-600 hover:underline font-medium">{container.name}</a>
+                </td>
+                <td className="px-4 py-2">{getStatusBadge(container.status)}</td>
+                <td className="px-4 py-2 flex gap-2">
+                  <button className="btn btn-ghost btn-xs" title="Logs" onClick={() => handleShowLogs(container.containerId)}><FaFileAlt /></button>
+                  <button className="btn btn-ghost btn-xs" title="Stats" onClick={() => handleShowStats(container.containerId)}><FaChartBar /></button>
+                  <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
+                  <button className="btn btn-ghost btn-xs" title="Start" onClick={() => handleStart(container.containerId)}><FaPlay /></button>
+                  <button className="btn btn-ghost btn-xs" title="Stop" onClick={() => handleStop(container.containerId)}><FaStop /></button>
+                  <button className="btn btn-ghost btn-xs" title="Remove" onClick={() => handleRemove(container.containerId)}><FaTrash /></button>
+                </td>
+                <td className="px-4 py-2">
+                  <a href="#" className="text-blue-600 hover:underline">{container.image}</a>
                 </td>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {selectedContainer && (
-        <TerminalComponent 
-          containerId={selectedContainer} 
-          onClose={() => setSelectedContainer(null)} 
-        />
-      )}
-
+            ))
+          ) : (
+            <tr>
+              <td colSpan={6} className="text-center py-8 text-gray-400">No containers found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
       {/* Logs Modal */}
       {showLogs && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl relative animate-fadeIn">
-            <button className="absolute top-2 right-2 text-2xl font-bold text-gray-500 hover:text-red-500 transition" onClick={() => setShowLogs(null)}>×</button>
-            <h3 className="text-lg font-bold mb-2">Logs for {showLogs}</h3>
-            <pre className="bg-gray-900 text-green-200 p-3 rounded overflow-x-auto max-h-96 whitespace-pre-wrap">{logs}</pre>
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-2">Logs for {showLogs}</h3>
+            <pre className="bg-base-200 p-2 rounded text-xs max-h-96 overflow-auto">{logs}</pre>
+            <div className="modal-action">
+              <button className="btn" onClick={() => setShowLogs(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}
-
       {/* Stats Modal */}
       {showStats && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md relative animate-fadeIn">
-            <button className="absolute top-2 right-2 text-2xl font-bold text-gray-500 hover:text-red-500 transition" onClick={() => setShowStats(null)}>×</button>
-            <h3 className="text-lg font-bold mb-2">Stats for {showStats}</h3>
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-2">Stats for {showStats}</h3>
             {stats ? (
               stats.error ? (
-                <div className="text-red-600">{stats.error}</div>
+                <div className="alert alert-error">{stats.error}</div>
               ) : (
-                <div>
-                  <div><strong>CPU Usage:</strong> {stats.cpu?.usage ?? 'N/A'}%</div>
-                  <div><strong>Memory Usage:</strong> {stats.memory ? `${formatBytes(stats.memory.usage)} / ${formatBytes(stats.memory.limit)}` : 'N/A'}</div>
-                  <div><strong>Memory %:</strong> {stats.memory ? `${stats.memory.percentage}%` : 'N/A'}</div>
-                  <div><strong>Network:</strong> {stats.network ? JSON.stringify(stats.network) : 'N/A'}</div>
-                  <div><strong>Timestamp:</strong> {stats.timestamp ? new Date(stats.timestamp).toLocaleString() : 'N/A'}</div>
-                </div>
+                <pre className="bg-base-200 p-2 rounded text-xs max-h-96 overflow-auto">{JSON.stringify(stats, null, 2)}</pre>
               )
             ) : (
               <div>Loading stats...</div>
             )}
+            <div className="modal-action">
+              <button className="btn" onClick={() => setShowStats(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Terminal Modal */}
+      {selectedContainer && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-2">Terminal for {selectedContainer}</h3>
+            <TerminalComponent containerId={selectedContainer} />
+            <div className="modal-action">
+              <button className="btn" onClick={() => setSelectedContainer(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}

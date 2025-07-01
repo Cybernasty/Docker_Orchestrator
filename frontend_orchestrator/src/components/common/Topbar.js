@@ -13,8 +13,7 @@ const Topbar = () => {
   };
 
   return (
-    <header className="bg-white shadow flex items-center justify-between px-8 py-3 border-b border-gray-200 w-full">
-      <div className="text-xl font-bold text-blue-700 tracking-wide font-sans">Dashboard</div>
+    <header className="bg-white shadow flex items-center justify-end px-8 py-3 border-b border-gray-200 w-full">
       <div className="flex items-center space-x-6">
         <FaUserCircle className="text-2xl text-blue-700" />
         <span className="text-gray-700 font-semibold text-base">{user?.user?.email || "User"}</span>
