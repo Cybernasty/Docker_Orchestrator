@@ -161,14 +161,18 @@ const ContainersList = () => {
                 </td>
                 <td className="px-4 py-2">{getStatusBadge(container.status)}</td>
                 <td className="px-4 py-2 flex gap-2">
+                  {/* Logs and Stats: all roles */}
                   <button className="btn btn-ghost btn-xs" title="Logs" onClick={() => handleShowLogs(container.containerId)}><FaFileAlt /></button>
                   <button className="btn btn-ghost btn-xs" title="Stats" onClick={() => handleShowStats(container.containerId)}><FaChartBar /></button>
-                  {user?.role === "admin" || user?.role === "operator" ? (
-                    <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
-                  ) : null}
-                  <button className="btn btn-ghost btn-xs" title="Start" onClick={() => handleStart(container.containerId)}><FaPlay /></button>
-                  <button className="btn btn-ghost btn-xs" title="Stop" onClick={() => handleStop(container.containerId)}><FaStop /></button>
-                  <button className="btn btn-ghost btn-xs" title="Remove" onClick={() => handleRemove(container.containerId)}><FaTrash /></button>
+                  {/* Only admin/operator: Terminal, Start, Stop, Remove */}
+                  {(user?.role === "admin" || user?.role === "operator") && (
+                    <>
+                      <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
+                      <button className="btn btn-ghost btn-xs" title="Start" onClick={() => handleStart(container.containerId)}><FaPlay /></button>
+                      <button className="btn btn-ghost btn-xs" title="Stop" onClick={() => handleStop(container.containerId)}><FaStop /></button>
+                      <button className="btn btn-ghost btn-xs" title="Remove" onClick={() => handleRemove(container.containerId)}><FaTrash /></button>
+                    </>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   <a href="#" className="text-blue-600 hover:underline">{container.image}</a>

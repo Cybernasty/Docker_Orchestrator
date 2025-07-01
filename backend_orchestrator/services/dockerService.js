@@ -3,8 +3,12 @@ import Container from "../models/containers.model.js";
 import config from "../config/config.js";
 import { DockerError, ContainerError, NotFoundError } from "../utils/errors.js";
 
-// Initialize Docker with cross-platform socket path
-const docker = new Docker({ socketPath: config.dockerSocket });
+// Initialize Docker with cross-platform and env support
+const docker = new Docker({
+  socketPath: process.env.DOCKER_SOCKET || (process.platform === 'win32' ? '\\.pipe\docker_engine' : '/var/run/docker.sock'),
+  host: process.env.DOCKER_HOST || undefined,
+  port: process.env.DOCKER_PORT || undefined,
+});
 
 // Check Docker daemon availability
 export const checkDockerDaemon = async () => {
