@@ -6,6 +6,8 @@ import Home from "./components/Dashboard/Home";
 import Navbar from "./components/common/Navbar";
 import ContainersPage from "./components/Containers/ContainersPage";
 import ImagesPage from "./components/Images/ImagesPage";
+import ProfilePage from "./components/Profile/ProfilePage";
+import SettingsPage from "./components/Settings/SettingsPage";
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/containers" element={<ContainersPage />} />
           <Route path="/images" element={<ImagesPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           {/* <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} /> */}
         </Routes>
       </Router>

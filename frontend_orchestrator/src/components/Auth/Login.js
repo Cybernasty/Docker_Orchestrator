@@ -61,7 +61,7 @@ const Login = () => {
               <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300 text-lg" />
             </div>
           </div>
-          <div>
+    <div>
             <label className="block text-gray-600 mb-1 font-medium">Password</label>
             <div className="relative">
               <input
@@ -90,7 +90,7 @@ const Login = () => {
           >
             {loading ? "Signing in..." : "Login"}
           </button>
-        </form>
+      </form>
       </div>
       {/* Version at the bottom */}
       <div className="mt-6 text-xs text-gray-400">{APP_VERSION}</div>

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd, FaCog, FaCogs } from "react-icons/fa";
+import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd } from "react-icons/fa";
 
 const Sidebar = () => {
   return (
@@ -19,9 +19,6 @@ const Sidebar = () => {
         <NavLink to="/images" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaImages className="mr-3" /> Images</NavLink>
         <NavLink to="#networks" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaNetworkWired className="mr-3" /> Networks</NavLink>
         <NavLink to="#volumes" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaHdd className="mr-3" /> Volumes</NavLink>
-        <div className="text-xs text-blue-200 uppercase mt-6 mb-2">Settings</div>
-        <NavLink to="#settings" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaCog className="mr-3" /> Settings</NavLink>
-        <NavLink to="#advanced" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaCogs className="mr-3" /> Advanced</NavLink>
       </nav>
       <div className="mt-auto px-6 py-4 text-xs text-blue-200 border-t border-blue-800">orchestrator.io v1.0.0</div>
     </aside>
