@@ -1,24 +1,27 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: orchestrator-backend
+  name: backend-orchestrator
   namespace: orchestrator
-  labels:
-    app: orchestrator-backend
 spec:
-  replicas: 2
+  serviceName: backend-orchestrator
+  replicas: 3
   selector:
     matchLabels:
-      app: orchestrator-backend
+      app: backend-orchestrator
   template:
     metadata:
       labels:
-        app: orchestrator-backend
+        app: backend-orchestrator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: backend
         image: orchestrator-backend:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http
@@ -28,37 +31,38 @@ spec:
             configMapKeyRef:
               name: orchestrator-config
               key: NODE_ENV
-        - name: MONGO_URI
+        - name: PORT
           valueFrom:
             configMapKeyRef:
               name: orchestrator-config
-              key: MONGO_URI
-        - name: DOCKER_HOST
+              key: PORT
+        - name: MONGODB_URI
           valueFrom:
             configMapKeyRef:
               name: orchestrator-config
-              key: DOCKER_HOST
-        - name: INSTANCE_ID
-          valueFrom:
-            configMapKeyRef:
-              name: orchestrator-config
-              key: INSTANCE_ID
+              key: MONGODB_URI
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
               name: orchestrator-secrets
               key: JWT_SECRET
+        - name: DOCKER_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: DOCKER_HOST
         volumeMounts:
-        - name: docker-sock
+        - name: docker-socket
           mountPath: /var/run/docker.sock
-          readOnly: true
+        - name: logs
+          mountPath: /app/logs
         resources:
           requests:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "2Gi"
+            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /health
@@ -75,9 +79,47 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
       volumes:
-      - name: docker-sock
+      - name: docker-socket
         hostPath:
           path: /var/run/docker.sock
           type: Socket
-      restartPolicy: Always 
+      - name: logs
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: backend-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-orchestrator
+  namespace: orchestrator
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5000"
+    prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app: backend-orchestrator
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
+  - name: metrics
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP 

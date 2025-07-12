@@ -1,0 +1,97 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: orchestrator
+spec:
+  podSelector:
+    matchLabels:
+      app: backend-orchestrator
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: orchestrator
+    ports:
+    - protocol: TCP
+      port: 5000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: orchestrator
+    ports:
+    - protocol: TCP
+      port: 27017
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+  namespace: orchestrator
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend-orchestrator
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: orchestrator
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: orchestrator
+    ports:
+    - protocol: TCP
+      port: 5000
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-network-policy
+  namespace: orchestrator
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: orchestrator
+    ports:
+    - protocol: TCP
+      port: 27017
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53 

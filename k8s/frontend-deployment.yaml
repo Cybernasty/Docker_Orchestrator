@@ -1,34 +1,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: orchestrator-frontend
+  name: frontend-orchestrator
   namespace: orchestrator
-  labels:
-    app: orchestrator-frontend
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
-      app: orchestrator-frontend
+      app: frontend-orchestrator
   template:
     metadata:
       labels:
-        app: orchestrator-frontend
+        app: frontend-orchestrator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
       containers:
       - name: frontend
         image: orchestrator-frontend:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
           name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
         resources:
           requests:
             memory: "128Mi"
             cpu: "100m"
           limits:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "512Mi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /health
@@ -45,4 +51,29 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-      restartPolicy: Always 
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-orchestrator
+  namespace: orchestrator
+spec:
+  selector:
+    app: frontend-orchestrator
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  type: ClusterIP 
