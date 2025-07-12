@@ -61,7 +61,41 @@ const ContainerSchema = new mongoose.Schema({
   environment: [{
     key: String,
     value: String
-  }]
+  }],
+  volumes: [{
+    host: String,
+    container: String,
+    mode: { type: String, enum: ["rw", "ro"], default: "rw" }
+  }],
+  network: {
+    type: String,
+    default: "bridge"
+  },
+  restartPolicy: {
+    type: String,
+    enum: ["no", "always", "unless-stopped", "on-failure"],
+    default: "no"
+  },
+  memory: {
+    type: Number,
+    default: null
+  },
+  cpuShares: {
+    type: Number,
+    default: null
+  },
+  workingDir: {
+    type: String,
+    default: null
+  },
+  command: {
+    type: String,
+    default: null
+  },
+  entrypoint: {
+    type: String,
+    default: null
+  }
 }, {
   timestamps: true // Automatically manage createdAt and updatedAt
 });

@@ -9,7 +9,10 @@ import {
   execCommandInContainer,
   getContainerLogs,
   getContainerStats,
-  listImages
+  listImages,
+  buildImageFromDockerfile,
+  createContainerFromImage,
+  buildAndCreateContainer
 } from "../services/dockerService.js";
 import { asyncHandler } from "../utils/errors.js";
 import { 
@@ -119,6 +122,124 @@ router.post("/:containerId/exec", authenticateJWT, authorizeRoles("admin", "oper
     output,
     command,
     containerId: req.params.containerId,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Build image from Dockerfile (admin/operator)
+router.post("/build-image", authenticateJWT, authorizeRoles("admin", "operator"), asyncHandler(async (req, res) => {
+  const { dockerfileContent, imageName, tag = 'latest' } = req.body;
+  
+  if (!dockerfileContent || !imageName) {
+    return res.status(400).json({
+      error: {
+        message: "Dockerfile content and image name are required"
+      }
+    });
+  }
+  
+  const result = await buildImageFromDockerfile(dockerfileContent, imageName, tag);
+  res.status(200).json({
+    message: "Image built successfully",
+    imageName: `${imageName}:${tag}`,
+    output: result.output,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Create container from image (admin/operator)
+router.post("/create", authenticateJWT, authorizeRoles("admin", "operator"), asyncHandler(async (req, res) => {
+  const { 
+    imageName, 
+    containerName, 
+    ports = [], 
+    environment = [], 
+    volumes = [],
+    network = 'bridge',
+    restartPolicy = 'no',
+    memory = null,
+    cpuShares = null,
+    workingDir = null,
+    command = null,
+    entrypoint = null
+  } = req.body;
+  
+  console.log('Received create container request:', { imageName, containerName, ports, environment, volumes });
+  
+  if (!imageName || !containerName) {
+    return res.status(400).json({
+      error: {
+        message: "Image name and container name are required"
+      }
+    });
+  }
+  
+  const options = {
+    ports,
+    environment,
+    volumes,
+    network,
+    restartPolicy,
+    memory,
+    cpuShares,
+    workingDir,
+    command,
+    entrypoint
+  };
+  
+  const container = await createContainerFromImage(imageName, containerName, options);
+  res.status(201).json({
+    message: "Container created successfully",
+    container,
+    timestamp: new Date().toISOString()
+  });
+}));
+
+// Build and create container from Dockerfile (admin/operator)
+router.post("/build-and-create", authenticateJWT, authorizeRoles("admin", "operator"), asyncHandler(async (req, res) => {
+  const { 
+    dockerfileContent, 
+    imageName, 
+    containerName, 
+    tag = 'latest',
+    ports = [], 
+    environment = [], 
+    volumes = [],
+    network = 'bridge',
+    restartPolicy = 'no',
+    memory = null,
+    cpuShares = null,
+    workingDir = null,
+    command = null,
+    entrypoint = null
+  } = req.body;
+  
+  if (!dockerfileContent || !imageName || !containerName) {
+    return res.status(400).json({
+      error: {
+        message: "Dockerfile content, image name, and container name are required"
+      }
+    });
+  }
+  
+  const options = {
+    tag,
+    ports,
+    environment,
+    volumes,
+    network,
+    restartPolicy,
+    memory,
+    cpuShares,
+    workingDir,
+    command,
+    entrypoint
+  };
+  
+  const container = await buildAndCreateContainer(dockerfileContent, imageName, containerName, options);
+  res.status(201).json({
+    message: "Container built and created successfully",
+    container,
     timestamp: new Date().toISOString()
   });
 }));

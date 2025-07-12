@@ -5,7 +5,7 @@ import { DockerError, ContainerError, NotFoundError } from "../utils/errors.js";
 
 // Initialize Docker with cross-platform and env support
 const docker = new Docker({
-  socketPath: process.env.DOCKER_SOCKET || (process.platform === 'win32' ? '\\.pipe\docker_engine' : '/var/run/docker.sock'),
+  socketPath: config.dockerSocket,
   host: process.env.DOCKER_HOST || undefined,
   port: process.env.DOCKER_PORT || undefined,
 });
@@ -380,5 +380,223 @@ export const listImages = async () => {
   } catch (error) {
     console.error("❌ Error listing images:", error.message);
     throw new DockerError(`Failed to list images: ${error.message}`, 500, "images");
+  }
+};
+
+// Build image from Dockerfile
+export const buildImageFromDockerfile = async (dockerfileContent, imageName, tag = 'latest') => {
+  try {
+    console.log(`🔨 Building image ${imageName}:${tag} from Dockerfile...`);
+    
+    // Create a temporary directory for the build context
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const os = await import('os');
+    
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docker-build-'));
+    const dockerfilePath = path.join(tempDir, 'Dockerfile');
+    
+    // Write Dockerfile content to temporary file
+    await fs.writeFile(dockerfilePath, dockerfileContent);
+    
+    // Create a tar stream for the build context
+    const tar = await import('tar');
+    const buildContext = tar.c(
+      { gzip: true, cwd: tempDir },
+      ['.']
+    );
+    
+    // Build the image
+    const buildResult = await new Promise((resolve, reject) => {
+      docker.buildImage(buildContext, {
+        t: `${imageName}:${tag}`,
+        dockerfile: 'Dockerfile'
+      }, (error, stream) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        
+        let buildOutput = '';
+        stream.on('data', (chunk) => {
+          const output = chunk.toString();
+          buildOutput += output;
+          console.log(output.trim());
+        });
+        
+        stream.on('end', () => {
+          resolve({ success: true, output: buildOutput });
+        });
+        
+        stream.on('error', (error) => {
+          reject(error);
+        });
+      });
+    });
+    
+    // Clean up temporary directory
+    await fs.rm(tempDir, { recursive: true, force: true });
+    
+    console.log(`✅ Image ${imageName}:${tag} built successfully`);
+    return buildResult;
+  } catch (error) {
+    console.error(`❌ Error building image ${imageName}:${tag}:`, error.message);
+    throw new DockerError(`Failed to build image: ${error.message}`, 500, "build");
+  }
+};
+
+// Create container from image
+export const createContainerFromImage = async (imageName, containerName, options = {}) => {
+  try {
+    console.log(`🚀 Creating container ${containerName} from image ${imageName}...`);
+    
+    const {
+      ports = [],
+      environment = [],
+      volumes = [],
+      network = 'bridge',
+      restartPolicy = 'no',
+      memory = null,
+      cpuShares = null,
+      workingDir = null,
+      command = null,
+      entrypoint = null
+    } = options;
+    
+    // Validate image name format
+    if (!imageName || typeof imageName !== 'string') {
+      throw new DockerError('Invalid image name: must be a non-empty string', 400, "create");
+    }
+    
+    // Ensure image name has a valid format (repository:tag or just repository)
+    const imageNameRegex = /^[a-zA-Z0-9][a-zA-Z0-9._-]*(\/[a-zA-Z0-9][a-zA-Z0-9._-]*)*(:[a-zA-Z0-9._-]+)?$/;
+    if (!imageNameRegex.test(imageName)) {
+      throw new DockerError(`Invalid image name format: ${imageName}`, 400, "create");
+    }
+    
+    // Ensure image name has a tag (add 'latest' if missing)
+    let finalImageName = imageName;
+    if (!imageName.includes(':')) {
+      finalImageName = `${imageName}:latest`;
+      console.log(`📝 Adding 'latest' tag to image name: ${finalImageName}`);
+    }
+    
+    // Prepare port bindings
+    const portBindings = {};
+    const exposedPorts = {};
+    
+    ports.forEach(port => {
+      const [hostPort, containerPort, protocol = 'tcp'] = port.split(':');
+      const portKey = `${containerPort}/${protocol}`;
+      exposedPorts[portKey] = {};
+      portBindings[portKey] = [{ HostPort: hostPort }];
+    });
+    
+    // Prepare environment variables
+    const envVars = environment.map(env => `${env.key}=${env.value}`);
+    
+    // Prepare volume bindings
+    const volumeBindings = volumes.map(volume => `${volume.host}:${volume.container}:${volume.mode || 'rw'}`);
+    
+    // Create container configuration
+    const containerConfig = {
+      Image: finalImageName,
+      name: containerName,
+      ExposedPorts: exposedPorts,
+      Env: envVars,
+      HostConfig: {
+        PortBindings: portBindings,
+        Binds: volumeBindings,
+        NetworkMode: network,
+        RestartPolicy: {
+          Name: restartPolicy
+        }
+      }
+    };
+    
+    // Add optional configurations
+    if (memory) {
+      containerConfig.HostConfig.Memory = parseInt(memory) * 1024 * 1024; // Convert MB to bytes
+    }
+    
+    if (cpuShares) {
+      containerConfig.HostConfig.CpuShares = parseInt(cpuShares);
+    }
+    
+    if (workingDir) {
+      containerConfig.WorkingDir = workingDir;
+    }
+    
+    if (command) {
+      containerConfig.Cmd = Array.isArray(command) ? command : [command];
+    }
+    
+    if (entrypoint) {
+      containerConfig.Entrypoint = Array.isArray(entrypoint) ? entrypoint : [entrypoint];
+    }
+    
+    // Create the container
+    const container = await docker.createContainer(containerConfig);
+    
+    // Get container info
+    const containerInfo = await container.inspect();
+    
+    // Save to database
+    const newContainer = new Container({
+      containerId: containerInfo.Id,
+      name: containerName,
+      image: finalImageName,
+      status: containerInfo.State.Status,
+      ports: ports.map(port => {
+        const [hostPort, containerPort, protocol = 'tcp'] = port.split(':');
+        return {
+          hostPort,
+          containerPort,
+          protocol
+        };
+      }),
+      environment: environment,
+      volumes: volumes,
+      network,
+      restartPolicy,
+      memory,
+      cpuShares,
+      workingDir,
+      command,
+      entrypoint
+    });
+    
+    await newContainer.save();
+    
+    console.log(`✅ Container ${containerName} created successfully`);
+    return {
+      containerId: containerInfo.Id,
+      name: containerName,
+      image: finalImageName,
+      status: containerInfo.State.Status
+    };
+  } catch (error) {
+    console.error(`❌ Error creating container ${containerName}:`, error.message);
+    throw new DockerError(`Failed to create container: ${error.message}`, 500, "create");
+  }
+};
+
+// Build and create container from Dockerfile
+export const buildAndCreateContainer = async (dockerfileContent, imageName, containerName, options = {}) => {
+  try {
+    // First build the image
+    await buildImageFromDockerfile(dockerfileContent, imageName, options.tag || 'latest');
+    
+    // Then create the container
+    const container = await createContainerFromImage(
+      `${imageName}:${options.tag || 'latest'}`,
+      containerName,
+      options
+    );
+    
+    return container;
+  } catch (error) {
+    console.error(`❌ Error in build and create process:`, error.message);
+    throw error;
   }
 };

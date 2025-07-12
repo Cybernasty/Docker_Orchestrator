@@ -5,6 +5,7 @@ import Home from "./components/Dashboard/Home";
 // import ProtectedRoute from "./components/common/ProtectedRoute";
 import Navbar from "./components/common/Navbar";
 import ContainersPage from "./components/Containers/ContainersPage";
+import CreateContainerPage from "./components/Containers/CreateContainerPage";
 import ImagesPage from "./components/Images/ImagesPage";
 import ProfilePage from "./components/Profile/ProfilePage";
 import SettingsPage from "./components/Settings/SettingsPage";
@@ -19,6 +20,7 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/home" element={<Home />} />
           <Route path="/containers" element={<ContainersPage />} />
+          <Route path="/containers/create" element={<CreateContainerPage />} />
           <Route path="/images" element={<ImagesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

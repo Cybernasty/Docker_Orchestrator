@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd, FaUserPlus } from "react-icons/fa";
+import { FaHome, FaDocker, FaImages, FaNetworkWired, FaHdd, FaUserPlus, FaPlus } from "react-icons/fa";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 
@@ -19,6 +19,9 @@ const Sidebar = () => {
         <div className="text-xs text-blue-200 uppercase mb-2">Local</div>
         <NavLink to="/home" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaHome className="mr-3" /> Dashboard</NavLink>
         <NavLink to="/containers" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaDocker className="mr-3" /> Containers</NavLink>
+        {(user?.role === "admin" || user?.role === "operator") && (
+          <NavLink to="/containers/create" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaPlus className="mr-3" /> Create Container</NavLink>
+        )}
         <NavLink to="/images" className={({ isActive }) => `flex items-center px-4 py-2 rounded transition font-medium ${isActive ? "bg-blue-800" : "hover:bg-blue-800"}`}><FaImages className="mr-3" /> Images</NavLink>
         <NavLink to="#networks" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaNetworkWired className="mr-3" /> Networks</NavLink>
         <NavLink to="#volumes" className="flex items-center px-4 py-2 rounded transition font-medium hover:bg-blue-800"><FaHdd className="mr-3" /> Volumes</NavLink>
