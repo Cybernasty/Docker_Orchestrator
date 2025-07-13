@@ -25,6 +25,8 @@ spec:
         ports:
         - containerPort: 5000
           name: http
+        - containerPort: 5443
+          name: https
         env:
         - name: NODE_ENV
           valueFrom:
@@ -36,6 +38,37 @@ spec:
             configMapKeyRef:
               name: orchestrator-config
               key: PORT
+        - name: HTTPS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: HTTPS_ENABLED
+        - name: HTTPS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: HTTPS_PORT
+        - name: SSL_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_CERT_PATH
+        - name: SSL_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_KEY_PATH
+        - name: SSL_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_CA_PATH
+        - name: SSL_PASSPHRASE
+          valueFrom:
+            secretKeyRef:
+              name: orchestrator-secrets
+              key: SSL_PASSPHRASE
+              optional: true
         - name: MONGODB_URI
           valueFrom:
             configMapKeyRef:
@@ -56,6 +89,12 @@ spec:
           mountPath: /var/run/docker.sock
         - name: logs
           mountPath: /app/logs
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: ssl-private
+          mountPath: /etc/ssl/private
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -94,14 +133,28 @@ spec:
           type: Socket
       - name: logs
         emptyDir: {}
+      - name: ssl-certs
+        secret:
+          secretName: ssl-certificates
+          items:
+          - key: server.crt
+            path: server.crt
+          - key: ca.crt
+            path: ca.crt
+      - name: ssl-private
+        secret:
+          secretName: ssl-certificates
+          items:
+          - key: server.key
+            path: server.key
   volumeClaimTemplates:
   - metadata:
-      name: backend-storage
+      name: logs
     spec:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 5Gi
+          storage: 10Gi
 ---
 apiVersion: v1
 kind: Service

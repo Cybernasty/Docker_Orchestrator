@@ -5,6 +5,8 @@ import { connectDB } from "./config/db.js";
 import { WebSocketServer } from "ws";
 import { spawn } from "child_process";
 import http from "http";
+import https from "https";
+import fs from "fs";
 import containerRoutes from "./routes/containerRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import { errorHandler } from "./utils/errors.js";
@@ -13,7 +15,29 @@ import { authenticateJWT } from "./middleware/auth.js";
 import jwt from "jsonwebtoken";
 
 const app = express();
-const server = http.createServer(app);
+
+// HTTPS configuration
+let server;
+if (config.https.enabled) {
+  try {
+    // Read SSL certificates
+    const sslOptions = {
+      cert: fs.readFileSync(config.https.certPath),
+      key: fs.readFileSync(config.https.keyPath),
+      ca: fs.readFileSync(config.https.caPath),
+      passphrase: config.https.passphrase
+    };
+    
+    server = https.createServer(sslOptions, app);
+    console.log('🔒 HTTPS server configured with CA-signed certificates');
+  } catch (error) {
+    console.error('❌ Failed to load SSL certificates:', error.message);
+    console.log('🔄 Falling back to HTTP server');
+    server = http.createServer(app);
+  }
+} else {
+  server = http.createServer(app);
+}
 
 // Rate limiting middleware
 const limiter = rateLimit({
@@ -247,11 +271,17 @@ wss.on('close', () => {
 connectDB();
 
 // Start server
-server.listen(config.port, () => {
-  console.log(`🚀 Server started at http://localhost:${config.port}`);
+const port = config.https.enabled ? config.https.port : config.port;
+const protocol = config.https.enabled ? 'https' : 'http';
+
+server.listen(port, () => {
+  console.log(`🚀 Server started at ${protocol}://localhost:${port}`);
   console.log(`📊 Environment: ${config.nodeEnv}`);
   console.log(`🔗 WebSocket server ready`);
   console.log(`🐳 Docker socket: ${config.dockerSocket}`);
+  if (config.https.enabled) {
+    console.log(`🔒 HTTPS enabled with CA-signed certificates`);
+  }
 });
 
 // Graceful shutdown

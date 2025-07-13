@@ -9,13 +9,13 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend1
       - backend2
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "https://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,11 +32,18 @@ services:
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
       - INSTANCE_ID=backend1
+      - HTTPS_ENABLED=${HTTPS_ENABLED:-false}
+      - HTTPS_PORT=5443
+      - SSL_CERT_PATH=/etc/ssl/certs/server.crt
+      - SSL_KEY_PATH=/etc/ssl/private/server.key
+      - SSL_CA_PATH=/etc/ssl/certs/ca.crt
+      - SSL_PASSPHRASE=${SSL_PASSPHRASE:-}
     depends_on:
       mongo:
         condition: service_healthy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ssl:/etc/ssl:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
@@ -57,11 +64,18 @@ services:
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
       - INSTANCE_ID=backend2
+      - HTTPS_ENABLED=${HTTPS_ENABLED:-false}
+      - HTTPS_PORT=5443
+      - SSL_CERT_PATH=/etc/ssl/certs/server.crt
+      - SSL_KEY_PATH=/etc/ssl/private/server.key
+      - SSL_CA_PATH=/etc/ssl/certs/ca.crt
+      - SSL_PASSPHRASE=${SSL_PASSPHRASE:-}
     depends_on:
       mongo:
         condition: service_healthy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ssl:/etc/ssl:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
@@ -105,22 +119,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # Redis for session storage (optional, for session sharing between instances)
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 volumes:
   mongo-data:
-    driver: local
-  redis-data:
     driver: local 
