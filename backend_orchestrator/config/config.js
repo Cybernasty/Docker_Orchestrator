@@ -18,7 +18,7 @@ const config = {
   },
   
   // Database configuration
-  mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/containersDB',
+  mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/containersDB',
   
   // CORS configuration
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',

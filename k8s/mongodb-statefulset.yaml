@@ -5,7 +5,7 @@ metadata:
   namespace: orchestrator
 spec:
   serviceName: mongodb
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: mongodb
@@ -32,14 +32,12 @@ spec:
         command:
         - mongod
         - --bind_ip_all
-        - --replSet
-        - rs0
-        - --auth
         volumeMounts:
         - name: mongodb-data
           mountPath: /data/db
         - name: mongodb-config
           mountPath: /docker-entrypoint-initdb.d
+
         resources:
           requests:
             memory: "512Mi"
@@ -50,7 +48,11 @@ spec:
         livenessProbe:
           exec:
             command:
-            - mongo
+            - mongosh
+            - --username
+            - admin
+            - --password
+            - $(MONGODB_ROOT_PASSWORD)
             - --eval
             - "db.adminCommand('ping')"
           initialDelaySeconds: 30
@@ -58,7 +60,11 @@ spec:
         readinessProbe:
           exec:
             command:
-            - mongo
+            - mongosh
+            - --username
+            - admin
+            - --password
+            - $(MONGODB_ROOT_PASSWORD)
             - --eval
             - "db.adminCommand('ping')"
           initialDelaySeconds: 5
@@ -86,9 +92,7 @@ data:
     rs.initiate({
       _id: "rs0",
       members: [
-        { _id: 0, host: "mongodb-0.mongodb.orchestrator.svc.cluster.local:27017" },
-        { _id: 1, host: "mongodb-1.mongodb.orchestrator.svc.cluster.local:27017" },
-        { _id: 2, host: "mongodb-2.mongodb.orchestrator.svc.cluster.local:27017" }
+        { _id: 0, host: "mongodb-0.mongodb.orchestrator.svc.cluster.local:27017" }
       ]
     });
     

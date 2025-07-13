@@ -10,14 +10,14 @@ data:
   CORS_ORIGIN: "https://orchestrator.example.com"
   
   # HTTPS Configuration
-  HTTPS_ENABLED: "true"
+  HTTPS_ENABLED: "false"
   HTTPS_PORT: "5443"
   SSL_CERT_PATH: "/etc/ssl/certs/server.crt"
   SSL_KEY_PATH: "/etc/ssl/private/server.key"
   SSL_CA_PATH: "/etc/ssl/certs/ca.crt"
   
   # MongoDB Configuration
-  MONGODB_URI: "mongodb://mongodb-0.mongodb.orchestrator.svc.cluster.local:27017,mongodb-1.mongodb.orchestrator.svc.cluster.local:27017,mongodb-2.mongodb.orchestrator.svc.cluster.local:27017/orchestrator?replicaSet=rs0&authSource=admin"
+  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration"
   
   # JWT Configuration
   JWT_SECRET: "your-super-secret-jwt-key-change-this-in-production"

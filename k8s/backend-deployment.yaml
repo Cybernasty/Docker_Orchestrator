@@ -172,7 +172,7 @@ spec:
   - name: http
     port: 5000
     targetPort: 5000
-  - name: metrics
-    port: 5000
-    targetPort: 5000
+  - name: https
+    port: 5443
+    targetPort: 5443
   type: ClusterIP 

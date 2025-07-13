@@ -90,7 +90,7 @@ dist
 
 # Gatsby files
 .cache/
-# public  # Commented out to allow public directory in Docker build
+# public directory is needed for the build
 
 # Storybook build outputs
 .out
