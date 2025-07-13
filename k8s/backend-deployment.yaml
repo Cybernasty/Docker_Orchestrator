@@ -20,7 +20,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: backend
-        image: orchestrator-backend:latest
+        image: localhost:6500/orchestrator-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

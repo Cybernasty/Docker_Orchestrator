@@ -19,7 +19,7 @@ spec:
         fsGroup: 101
       containers:
       - name: frontend
-        image: orchestrator-frontend:latest
+        image: localhost:6500/orchestrator-frontend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
