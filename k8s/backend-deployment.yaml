@@ -15,9 +15,9 @@ spec:
         app: backend-orchestrator
     spec:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
+        runAsNonRoot: false
+        runAsUser: 0
+        fsGroup: 0
       containers:
       - name: backend
         image: localhost:6500/orchestrator-backend:latest

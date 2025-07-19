@@ -25,6 +25,7 @@ const config = {
   
   // Docker configuration
   dockerSocket: process.env.DOCKER_SOCKET || (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock'),
+  dockerHost: process.env.DOCKER_HOST || null,
   
   // Security configuration
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',

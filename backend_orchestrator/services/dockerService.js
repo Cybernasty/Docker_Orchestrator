@@ -4,11 +4,21 @@ import config from "../config/config.js";
 import { DockerError, ContainerError, NotFoundError } from "../utils/errors.js";
 
 // Initialize Docker with cross-platform and env support
-const docker = new Docker({
-  socketPath: config.dockerSocket,
-  host: process.env.DOCKER_HOST || undefined,
-  port: process.env.DOCKER_PORT || undefined,
-});
+const dockerConfig = {};
+
+if (config.dockerHost && config.dockerHost.startsWith('tcp://')) {
+  // Use TCP connection (for Kubernetes accessing host Docker)
+  const url = new URL(config.dockerHost);
+  dockerConfig.host = url.hostname;
+  dockerConfig.port = url.port || 2375;
+  console.log(`🔗 Using Docker TCP connection: ${config.dockerHost}`);
+} else {
+  // Use socket connection (for local development)
+  dockerConfig.socketPath = config.dockerSocket;
+  console.log(`🔗 Using Docker socket: ${config.dockerSocket}`);
+}
+
+const docker = new Docker(dockerConfig);
 
 // Check Docker daemon availability
 export const checkDockerDaemon = async () => {
@@ -370,6 +380,7 @@ export const getContainerStats = async (containerId) => {
 
 // Automatically sync containers based on config
 setInterval(syncContainersToDB, config.syncInterval);
+console.log("🔄 Docker container sync enabled - syncing every", config.syncInterval, "ms");
 
 // List Docker images
 export const listImages = async () => {
