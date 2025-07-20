@@ -15,6 +15,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Login attempt with:", credentials); // Debug log
     setError(null);
     setLoading(true);
     try {
@@ -54,11 +55,15 @@ const Login = () => {
                 type="email"
                 placeholder="Enter your email"
                 value={credentials.email}
-                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg pl-10 bg-blue-50/50 transition"
+                onChange={(e) => {
+                  console.log("Email input:", e.target.value); // Debug log
+                  setCredentials({ ...credentials, email: e.target.value });
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg pl-10 bg-white text-gray-900 placeholder-gray-500 transition-colors duration-200"
+                style={{ color: '#1f2937' }}
                 required
               />
-              <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300 text-lg" />
+              <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
             </div>
           </div>
     <div>
@@ -68,14 +73,18 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg pl-10 pr-10 bg-blue-50/50 transition"
+                onChange={(e) => {
+                  console.log("Password input:", e.target.value); // Debug log
+                  setCredentials({ ...credentials, password: e.target.value });
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg pl-10 pr-10 bg-white text-gray-900 placeholder-gray-500 transition-colors duration-200"
+                style={{ color: '#1f2937' }}
                 required
               />
-              <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300 text-lg" />
+              <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 hover:text-blue-500 focus:outline-none"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                 onClick={() => setShowPassword((v) => !v)}
                 tabIndex={-1}
               >
