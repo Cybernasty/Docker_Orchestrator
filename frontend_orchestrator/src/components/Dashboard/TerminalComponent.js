@@ -21,7 +21,7 @@ const TerminalComponent = ({ containerId, containerName = "Container", shellUser
       setConnected(false);
       return;
     }
-    ws.current = new window.WebSocket(`ws://localhost:5000?token=${token}`);
+          ws.current = new window.WebSocket(`ws://${window.location.host}?token=${token}`);
 
     ws.current.onopen = () => {
       setMessages((prev) => [...prev, reconnectAttempts.current > 0 ? "🔄 Reconnected to container shell..." : "Connected to container shell..."]);

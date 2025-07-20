@@ -20,7 +20,7 @@ export default function AddUser() {
     setMessage(null);
     try {
       await axios.post(
-        "http://localhost:5000/api/auth/add-user",
+        "/api/auth/add-user",
         form,
         { headers: { Authorization: `Bearer ${user.token}` } }
       );

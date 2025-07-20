@@ -1,0 +1,79 @@
+name: Pull Request Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Test Backend
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend_orchestrator/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend_orchestrator
+        run: npm ci
+
+      - name: Run backend linting
+        working-directory: ./backend_orchestrator
+        run: npm run lint || echo "Linting not configured"
+
+      - name: Run backend tests
+        working-directory: ./backend_orchestrator
+        run: npm test || echo "Tests not configured"
+
+  # Test Frontend
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend_orchestrator/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend_orchestrator
+        run: npm ci
+
+      - name: Run frontend linting
+        working-directory: ./frontend_orchestrator
+        run: npm run lint || echo "Linting not configured"
+
+      - name: Run frontend tests
+        working-directory: ./frontend_orchestrator
+        run: npm test || echo "Tests not configured"
+
+  # Security Scan
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif' 

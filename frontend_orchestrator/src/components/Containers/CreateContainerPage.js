@@ -84,7 +84,7 @@ CMD ["npm", "start"]`,
     const fetchImages = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:5000/api/containers/images", {
+        const response = await axios.get("/api/containers/images", {
           headers: { Authorization: `Bearer ${token}` }
         });
         console.log('Fetched images:', response.data.images);
@@ -309,7 +309,7 @@ CMD ["npm", "start"]`,
         console.log('Creating container with data:', requestData);
 
         const response = await axios.post(
-          "http://localhost:5000/api/containers/create",
+          "/api/containers/create",
           requestData,
           {
             headers: { Authorization: `Bearer ${token}` }
@@ -341,7 +341,7 @@ CMD ["npm", "start"]`,
         };
 
         const response = await axios.post(
-          "http://localhost:5000/api/containers/build-and-create",
+          "/api/containers/build-and-create",
           requestData,
           {
             headers: { Authorization: `Bearer ${token}` }
