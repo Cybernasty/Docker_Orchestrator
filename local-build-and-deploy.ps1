@@ -42,11 +42,11 @@ try {
 # Build and push backend image
 Write-Host "`nBuilding backend image..." -ForegroundColor Yellow
 try {
-    docker build -t "$REGISTRY/$BACKEND_IMAGE:latest" ./backend_orchestrator
+    docker build -t "localhost:6500/$BACKEND_IMAGE:latest" ./backend_orchestrator
     Write-Host "Backend image built successfully" -ForegroundColor Green
     
-    docker push "$REGISTRY/$BACKEND_IMAGE:latest"
-    Write-Host "Backend image pushed to $REGISTRY" -ForegroundColor Green
+    docker push "localhost:6500/$BACKEND_IMAGE:latest"
+    Write-Host "Backend image pushed to localhost:6500" -ForegroundColor Green
 } catch {
     Write-Host "Failed to build/push backend image: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
@@ -55,11 +55,11 @@ try {
 # Build and push frontend image
 Write-Host "`nBuilding frontend image..." -ForegroundColor Yellow
 try {
-    docker build -t "$REGISTRY/$FRONTEND_IMAGE:latest" ./frontend_orchestrator
+    docker build -t "localhost:6500/$FRONTEND_IMAGE:latest" ./frontend_orchestrator
     Write-Host "Frontend image built successfully" -ForegroundColor Green
     
-    docker push "$REGISTRY/$FRONTEND_IMAGE:latest"
-    Write-Host "Frontend image pushed to $REGISTRY" -ForegroundColor Green
+    docker push "localhost:6500/$FRONTEND_IMAGE:latest"
+    Write-Host "Frontend image pushed to localhost:6500" -ForegroundColor Green
 } catch {
     Write-Host "Failed to build/push frontend image: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
@@ -75,8 +75,8 @@ try {
     kubectl apply -f k8s/secrets.yaml
     
     # Update deployment images
-    kubectl set image deployment/frontend-orchestrator frontend="$REGISTRY/$FRONTEND_IMAGE:latest" -n $NAMESPACE
-    kubectl set image statefulset/backend-orchestrator backend="$REGISTRY/$BACKEND_IMAGE:latest" -n $NAMESPACE
+    kubectl set image deployment/frontend-orchestrator frontend="localhost:6500/$FRONTEND_IMAGE:latest" -n $NAMESPACE
+    kubectl set image statefulset/backend-orchestrator backend="localhost:6500/$BACKEND_IMAGE:latest" -n $NAMESPACE
     
     # Wait for rollout
     kubectl rollout status deployment/frontend-orchestrator -n $NAMESPACE
