@@ -20,11 +20,14 @@ spec:
         fsGroup: 0
       containers:
       - name: backend
-        image: cybermonta/orchestrator-backend:latest
+        # Update this to your external registry
+        image: your-registry.com/orchestrator-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http
+        - containerPort: 5443
+          name: https
         env:
         - name: NODE_ENV
           valueFrom:
@@ -36,6 +39,37 @@ spec:
             configMapKeyRef:
               name: orchestrator-config
               key: PORT
+        - name: HTTPS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: HTTPS_ENABLED
+        - name: HTTPS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: HTTPS_PORT
+        - name: SSL_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_CERT_PATH
+        - name: SSL_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_KEY_PATH
+        - name: SSL_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: orchestrator-config
+              key: SSL_CA_PATH
+        - name: SSL_PASSPHRASE
+          valueFrom:
+            secretKeyRef:
+              name: orchestrator-secrets
+              key: SSL_PASSPHRASE
+              optional: true
         - name: MONGODB_URI
           valueFrom:
             configMapKeyRef:
@@ -52,15 +86,23 @@ spec:
               name: orchestrator-config
               key: DOCKER_HOST
         volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
         - name: logs
           mountPath: /app/logs
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: ssl-private
+          mountPath: /etc/ssl/private
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /health
@@ -86,11 +128,19 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 30
       volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
       - name: logs
+        emptyDir: {}
+      - name: ssl-certs
+        emptyDir: {}
+      - name: ssl-private
         emptyDir: {}
   volumeClaimTemplates:
   - metadata:
-      name: logs
+      name: data
     spec:
       accessModes: ["ReadWriteOnce"]
       resources:
@@ -102,10 +152,6 @@ kind: Service
 metadata:
   name: backend-orchestrator
   namespace: orchestrator
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "5000"
-    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: backend-orchestrator
@@ -113,5 +159,7 @@ spec:
   - name: http
     port: 5000
     targetPort: 5000
+  - name: https
+    port: 5443
+    targetPort: 5443
   type: ClusterIP 
-

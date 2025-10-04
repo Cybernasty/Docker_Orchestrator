@@ -1,0 +1,115 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: orchestrator-devsecops-pipeline
+  namespace: orchestrator
+spec:
+  entrypoint: devsecops-pipeline
+  serviceAccountName: devsecops-sa
+  
+  templates:
+  - name: devsecops-pipeline
+    dag:
+      tasks:
+      - name: security-scan
+        template: trivy-scan
+      - name: code-quality
+        template: sonarqube-scan
+      - name: security-testing
+        template: zap-security-test
+        dependencies: [security-scan, code-quality]
+      - name: build-secure-images
+        template: build-images
+        dependencies: [security-testing]
+      - name: deploy-secure
+        template: secure-deployment
+        dependencies: [build-secure-images]
+  
+  - name: trivy-scan
+    container:
+      image: aquasec/trivy:latest
+      command: ["trivy"]
+      args: ["fs", "--format", "json", "--output", "/tmp/trivy-results.json", "/workspace"]
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+      - name: trivy-cache
+        mountPath: /root/.cache
+    volumes:
+    - name: workspace
+      emptyDir: {}
+    - name: trivy-cache
+      emptyDir: {}
+  
+  - name: sonarqube-scan
+    container:
+      image: sonarqube:latest
+      command: ["sonar-scanner"]
+      args: ["-Dsonar.projectKey=orchestrator", "-Dsonar.sources=/workspace"]
+      env:
+      - name: SONAR_HOST_URL
+        value: "http://sonarqube:9000"
+      - name: SONAR_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: sonarqube-secret
+            key: token
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+    volumes:
+    - name: workspace
+      emptyDir: {}
+  
+  - name: zap-security-test
+    container:
+      image: ghcr.io/zaproxy/zaproxy:stable
+      command: ["zap-baseline.py"]
+      args: ["-t", "http://frontend-orchestrator:80", "-J", "/tmp/zap-report.json"]
+      volumeMounts:
+      - name: zap-reports
+        mountPath: /tmp
+    volumes:
+    - name: zap-reports
+      emptyDir: {}
+  
+  - name: build-images
+    container:
+      image: docker:latest
+      command: ["sh"]
+      args:
+      - -c
+      - |
+        docker build -t orchestrator/backend:secure ../backend_orchestrator
+        docker build -t orchestrator/frontend:secure ../frontend_orchestrator
+        docker push orchestrator/backend:secure
+        docker push orchestrator/frontend:secure
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+      - name: workspace
+        mountPath: /workspace
+    volumes:
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock
+        type: Socket
+    - name: workspace
+      emptyDir: {}
+  
+  - name: secure-deployment
+    container:
+      image: bitnami/kubectl:latest
+      command: ["kubectl"]
+      args: ["apply", "-f", "/manifests"]
+      volumeMounts:
+      - name: manifests
+        mountPath: /manifests
+    volumes:
+    - name: manifests
+      configMap:
+        name: secure-manifests
+
+
+
+

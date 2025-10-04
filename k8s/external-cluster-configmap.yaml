@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-config
+  namespace: orchestrator
+data:
+  # Backend Configuration
+  NODE_ENV: "production"
+  PORT: "5000"
+  CORS_ORIGIN: "https://your-domain.com"  # Update with your actual domain
+  
+  # HTTPS Configuration
+  HTTPS_ENABLED: "false"
+  HTTPS_PORT: "5443"
+  SSL_CERT_PATH: "/etc/ssl/certs/server.crt"
+  SSL_KEY_PATH: "/etc/ssl/private/server.key"
+  SSL_CA_PATH: "/etc/ssl/certs/ca.crt"
+  
+  # MongoDB Configuration - Keep your existing MongoDB Atlas URI
+  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration"
+  
+  # JWT Configuration
+  JWT_SECRET: "your-super-secret-jwt-key-change-this-in-production"
+  JWT_EXPIRES_IN: "24h"
+  
+  # Docker Configuration - This will need to be updated based on your external cluster setup
+  # For external clusters, you might need to:
+  # 1. Use a remote Docker daemon
+  # 2. Use containerd directly
+  # 3. Use a Docker-in-Docker approach
+  DOCKER_HOST: "unix:///var/run/docker.sock"  # Default for most external clusters
+  
+  # Logging Configuration
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  
+  # Rate Limiting
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  
+  # Session Configuration
+  SESSION_SECRET: "your-session-secret-change-this"
+  SESSION_COOKIE_SECURE: "true"
+  SESSION_COOKIE_HTTPONLY: "true"
+  
+  # Health Check Configuration
+  HEALTH_CHECK_INTERVAL: "30000"
+  HEALTH_CHECK_TIMEOUT: "5000"
+  
+  # Container Management
+  MAX_CONTAINERS_PER_USER: "50"
+  DEFAULT_CONTAINER_MEMORY: "512"
+  DEFAULT_CONTAINER_CPU: "0.5"
+  
+  # Backup Configuration
+  BACKUP_ENABLED: "true"
+  BACKUP_SCHEDULE: "0 2 * * *"
+  BACKUP_RETENTION_DAYS: "30" 

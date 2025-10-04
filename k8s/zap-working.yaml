@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zap
+  namespace: zap
+  labels:
+    app: zap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zap
+  template:
+    metadata:
+      labels:
+        app: zap
+    spec:
+      containers:
+      - name: zap
+        image: ghcr.io/zaproxy/zaproxy:stable
+        imagePullPolicy: Always
+        command:
+        - /bin/bash
+        - -c
+        - |
+          zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true &
+          sleep 30
+          wait
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        # Remove all probes for now
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zap-service
+  namespace: zap
+spec:
+  selector:
+    app: zap
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+

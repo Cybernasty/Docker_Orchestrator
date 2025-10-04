@@ -18,14 +18,14 @@ const config = {
   },
   
   // Database configuration
-  mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/containersDB',
+  mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration',
   
   // CORS configuration
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   
   // Docker configuration
-  dockerSocket: process.env.DOCKER_SOCKET || (process.platform === 'win32' ? '\\\\.\\pipe\\docker_engine' : '/var/run/docker.sock'),
-  dockerHost: process.env.DOCKER_HOST || null,
+  dockerSocket: process.env.DOCKER_SOCKET || '/var/run/docker.sock',
+  dockerHost: process.env.DOCKER_HOST || 'tcp://192.168.11.149:2375',
   
   // Security configuration
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',

@@ -14,16 +14,21 @@ spec:
         app: frontend-orchestrator
     spec:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
       containers:
       - name: frontend
-        image: cybermonta/orchestrator-frontend:latest
+        # Update this to your external registry
+        image: your-registry.com/orchestrator-frontend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
           name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
         resources:
           requests:
             memory: "128Mi"
@@ -33,7 +38,7 @@ spec:
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -41,12 +46,24 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 80
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
 ---
 apiVersion: v1
 kind: Service
@@ -61,4 +78,3 @@ spec:
     port: 80
     targetPort: 80
   type: ClusterIP 
-

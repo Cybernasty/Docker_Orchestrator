@@ -19,6 +19,7 @@ spec:
     - protocol: TCP
       port: 5000
   egress:
+  # Allow egress to MongoDB within namespace
   - to:
     - namespaceSelector:
         matchLabels:
@@ -26,6 +27,13 @@ spec:
     ports:
     - protocol: TCP
       port: 27017
+  # Allow egress to Docker daemon on the target host (DOCKER_HOST)
+  - to:
+    - ipBlock:
+        cidr: 192.168.11.149/32
+    ports:
+    - protocol: TCP
+      port: 2375
   - to: []
     ports:
     - protocol: TCP

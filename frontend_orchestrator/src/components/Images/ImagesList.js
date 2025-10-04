@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_ENDPOINTS } from "../../config/api";
 
 const formatBytes = (bytes) => {
   if (bytes === 0) return '0 B';
@@ -19,7 +20,7 @@ const ImagesList = () => {
       setError(null);
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/containers/images", {
+        const res = await axios.get(API_ENDPOINTS.IMAGES, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setImages(res.data.images || []);

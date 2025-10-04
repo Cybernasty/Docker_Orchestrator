@@ -1,4 +1,6 @@
 // API Configuration
+// Default to same-origin so Kubernetes frontend Nginx proxies /api to backend
+// Optionally override via REACT_APP_API_URL when needed (e.g., local dev)
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 export const API_ENDPOINTS = {

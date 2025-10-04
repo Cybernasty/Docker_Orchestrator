@@ -3,6 +3,7 @@ import axios from "axios";
 import TerminalComponent from "./TerminalComponent"; // Import the terminal
 import { FaPlay, FaStop, FaTrash, FaTerminal, FaFileAlt, FaChartBar } from "react-icons/fa";
 import { AuthContext } from "../../context/AuthContext";
+import { API_ENDPOINTS } from "../../config/api";
 import "../../App.css"; // Ensure styling applies
 
 const ContainersList = () => {
@@ -21,7 +22,7 @@ const ContainersList = () => {
     try {
       setError(null);
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/api/containers", {
+      const response = await axios.get(API_ENDPOINTS.CONTAINERS, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setContainers(response.data.containers || []);
@@ -42,7 +43,7 @@ const ContainersList = () => {
   const handleStart = async (containerId) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`http://localhost:5000/api/containers/${containerId}/start`, {}, {
+      await axios.post(API_ENDPOINTS.CONTAINER_START(containerId), {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       await fetchContainers();
@@ -55,7 +56,7 @@ const ContainersList = () => {
   const handleStop = async (containerId) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`http://localhost:5000/api/containers/${containerId}/stop`, {}, {
+      await axios.post(API_ENDPOINTS.CONTAINER_STOP(containerId), {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       await fetchContainers();
@@ -72,7 +73,7 @@ const ContainersList = () => {
     
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/containers/${containerId}`, {
+      await axios.delete(API_ENDPOINTS.CONTAINER_DELETE(containerId), {
         headers: { Authorization: `Bearer ${token}` }
       });
       await fetchContainers();
@@ -87,7 +88,7 @@ const ContainersList = () => {
     setLogs("Loading logs...");
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:5000/api/containers/${containerId}/logs`, {
+      const res = await axios.get(API_ENDPOINTS.CONTAINER_LOGS(containerId), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLogs(res.data.logs || "No logs available.");
@@ -101,7 +102,7 @@ const ContainersList = () => {
     setStats(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:5000/api/containers/${containerId}/stats`, {
+      const res = await axios.get(API_ENDPOINTS.CONTAINER_STATS(containerId), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(res.data.stats || null);
