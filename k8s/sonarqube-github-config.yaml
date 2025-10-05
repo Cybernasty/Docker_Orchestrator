@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sonarqube-github-config
+  namespace: sonarqube
+data:
+  sonar.properties: |
+    # GitHub Integration Configuration
+    sonar.auth.github.enabled=true
+    sonar.auth.github.clientId.secured=[YOUR_GITHUB_APP_ID]
+    sonar.auth.github.clientSecret.secured=[YOUR_GITHUB_APP_SECRET]
+    sonar.auth.github.organizations=[YOUR_GITHUB_ORGANIZATION]
+    
+    # GitHub App Configuration
+    sonar.auth.github.appId=[YOUR_GITHUB_APP_ID]
+    sonar.auth.github.privateKeyPath=/opt/sonarqube/conf/github-private-key.pem
+    
+    # Authentication Settings
+    sonar.auth.github.allowUsersToSignUp=true
+    sonar.auth.github.syncUserGroups=true
+    
+    # Webhook Configuration
+    sonar.webhooks.github.enabled=true
+    
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonarqube-github-secret
+  namespace: sonarqube
+type: Opaque
+data:
+  # Base64 encoded values - replace with your actual values
+  github-app-id: [BASE64_ENCODED_APP_ID]
+  github-app-secret: [BASE64_ENCODED_APP_SECRET]
+  github-private-key: [BASE64_ENCODED_PRIVATE_KEY]
+

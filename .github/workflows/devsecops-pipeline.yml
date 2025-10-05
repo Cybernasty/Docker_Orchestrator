@@ -68,13 +68,19 @@ jobs:
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         args: >
           -Dsonar.projectKey=orchestrator
           -Dsonar.projectName=Orchestrator
           -Dsonar.projectVersion=${{ github.sha }}
-          -Dsonar.sources=.
+          -Dsonar.sources=backend_orchestrator/src,frontend_orchestrator/src
           -Dsonar.exclusions=**/node_modules/**,**/*.log,**/coverage/**,**/dist/**
+          -Dsonar.github.repository=${{ github.repository }}
+          -Dsonar.github.pullRequest=${{ github.event.number }}
+          -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.pullrequest.branch=${{ github.head_ref }}
+          -Dsonar.pullrequest.base=${{ github.base_ref }}
 
   security-testing:
     name: 🛡️ Security Testing (Skipped)
