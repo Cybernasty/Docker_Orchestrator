@@ -95,23 +95,5 @@ spec:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 10Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend-orchestrator
-  namespace: orchestrator
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "5000"
-    prometheus.io/path: "/metrics"
-spec:
-  selector:
-    app: backend-orchestrator
-  ports:
-  - name: http
-    port: 5000
-    targetPort: 5000
-  type: ClusterIP 
+          storage: 10Gi 
 
