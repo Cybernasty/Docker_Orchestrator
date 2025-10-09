@@ -25,8 +25,25 @@ jobs:
           
       - name: Install jq for JSON parsing
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          # Try to install jq without sudo first
+          if command -v apt-get >/dev/null 2>&1; then
+            # For Ubuntu/Debian systems
+            curl -L https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o /tmp/jq
+            chmod +x /tmp/jq
+            sudo mv /tmp/jq /usr/local/bin/jq || mv /tmp/jq ~/.local/bin/jq
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          elif command -v yum >/dev/null 2>&1; then
+            # For RHEL/CentOS systems
+            curl -L https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o /tmp/jq
+            chmod +x /tmp/jq
+            sudo mv /tmp/jq /usr/local/bin/jq || mv /tmp/jq ~/.local/bin/jq
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          else
+            # Fallback: download and use jq directly
+            curl -L https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o ./jq
+            chmod +x ./jq
+            echo "$(pwd)" >> $GITHUB_PATH
+          fi
           
       - name: Test SonarQube connectivity
         run: |
