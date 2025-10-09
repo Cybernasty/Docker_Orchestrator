@@ -23,6 +23,23 @@ jobs:
         with:
           node-version: '18'
           
+      - name: Install jq (without sudo)
+        run: |
+          # Create local bin directory
+          mkdir -p $HOME/.local/bin
+          
+          # Download jq binary
+          curl -L https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o $HOME/.local/bin/jq
+          
+          # Make it executable
+          chmod +x $HOME/.local/bin/jq
+          
+          # Add to PATH for this session
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          
+          # Verify installation
+          $HOME/.local/bin/jq --version
+          
       - name: Test SonarQube connectivity
         run: |
           echo "Testing SonarQube connectivity..."
@@ -34,9 +51,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: http://localhost:30900
           
-      - name: Display Quality Gate Status
-        run: |
-          echo "✅ SonarQube scan completed successfully!"
-          echo "📊 Check your SonarQube dashboard at http://localhost:30900 for detailed results"
-          echo "🔍 Project: orchestrator"
-          echo "📈 Quality Gate status available in SonarQube UI"
+      - name: SonarQube Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
