@@ -23,6 +23,11 @@ jobs:
         with:
           node-version: '18'
           
+      - name: Install jq for JSON parsing
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
       - name: Test SonarQube connectivity
         run: |
           echo "Testing SonarQube connectivity..."
