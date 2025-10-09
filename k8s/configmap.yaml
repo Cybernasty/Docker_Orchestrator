@@ -18,7 +18,7 @@ data:
   SSL_CA_PATH: "/etc/ssl/certs/ca.crt"
   
   # MongoDB Configuration
-  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration"
+  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orchestration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orchestration"
   
   # JWT Configuration
   JWT_SECRET: "your-super-secret-jwt-key-change-this-in-production"
