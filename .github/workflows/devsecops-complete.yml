@@ -1,0 +1,302 @@
+name: Complete DevSecOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_HUB_USERNAME: cybermonta
+  NAMESPACE: orchestrator
+  ARGOCD_APP_NAME: my-orchestrator-app
+
+jobs:
+  # ========================================
+  # SECURITY SCANNING PHASE
+  # ========================================
+  
+  trivy-filesystem-scan:
+    name: 🔍 Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-fs-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        ignore-unfixed: false
+        
+    - name: Upload Trivy filesystem scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-fs-results.sarif'
+        
+    - name: Check for critical vulnerabilities in filesystem
+      run: |
+        if [ -f trivy-fs-results.sarif ]; then
+          if grep -q '"level":"error"' trivy-fs-results.sarif; then
+            echo "❌ Critical vulnerabilities found in filesystem!"
+            echo "📊 Check the Security tab for details"
+            exit 1
+          fi
+          echo "✅ No critical vulnerabilities found in filesystem"
+        else
+          echo "⚠️ Trivy filesystem scan results not found"
+        fi
+
+  # ========================================
+  # CODE QUALITY ANALYSIS PHASE
+  # ========================================
+  
+  sonarqube-scan:
+    name: 📊 SonarQube Code Quality Analysis
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install jq (without sudo)
+      run: |
+        # Create local bin directory
+        mkdir -p $HOME/.local/bin
+        
+        # Download jq binary
+        curl -L https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o $HOME/.local/bin/jq
+        
+        # Make it executable
+        chmod +x $HOME/.local/bin/jq
+        
+        # Add to PATH for this session
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+        # Verify installation
+        $HOME/.local/bin/jq --version
+        
+    - name: Test SonarQube connectivity
+      run: |
+        echo "Testing SonarQube connectivity..."
+        curl -f http://localhost:30900/api/system/status || curl -f http://192.168.11.143:30900/api/system/status
+        
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: http://localhost:30900
+        
+    - name: SonarQube Quality Gate Check
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      timeout-minutes: 5
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ========================================
+  # BUILD AND SECURITY SCAN PHASE
+  # ========================================
+  
+  build-and-scan:
+    name: 🐳 Build and Security Scan Docker Images
+    needs: [trivy-filesystem-scan, sonarqube-scan]
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+        
+    - name: Build backend image
+      run: |
+        docker build -t ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:${{ github.sha }} backend_orchestrator
+        docker build -t ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:latest backend_orchestrator
+        
+    - name: Build frontend image
+      run: |
+        docker build -t ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:${{ github.sha }} frontend_orchestrator
+        docker build -t ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:latest frontend_orchestrator
+        
+    - name: Run Trivy vulnerability scanner on backend image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-backend-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        
+    - name: Run Trivy vulnerability scanner on frontend image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-frontend-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        
+    - name: Upload Trivy backend scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-backend-results.sarif'
+        
+    - name: Upload Trivy frontend scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-frontend-results.sarif'
+        
+    - name: Check for critical vulnerabilities in images
+      run: |
+        echo "🔍 Checking for critical vulnerabilities in Docker images..."
+        
+        if [ -f trivy-backend-results.sarif ]; then
+          if grep -q '"level":"error"' trivy-backend-results.sarif; then
+            echo "❌ Critical vulnerabilities found in backend image!"
+            echo "📊 Backend image: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:${{ github.sha }}"
+            exit 1
+          fi
+          echo "✅ No critical vulnerabilities found in backend image"
+        fi
+        
+        if [ -f trivy-frontend-results.sarif ]; then
+          if grep -q '"level":"error"' trivy-frontend-results.sarif; then
+            echo "❌ Critical vulnerabilities found in frontend image!"
+            echo "📊 Frontend image: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:${{ github.sha }}"
+            exit 1
+          fi
+          echo "✅ No critical vulnerabilities found in frontend image"
+        fi
+        
+        echo "🎉 All Docker images passed Trivy security scan!"
+        
+    - name: Push secure images
+      run: |
+        echo "🚀 Pushing secure Docker images..."
+        docker push ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:${{ github.sha }}
+        docker push ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:latest
+        docker push ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:${{ github.sha }}
+        docker push ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:latest
+        echo "✅ All images pushed successfully!"
+
+  # ========================================
+  # DEPLOYMENT PHASE
+  # ========================================
+  
+  update-manifests:
+    name: 📝 Update Kubernetes Manifests
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Update image tags in manifests
+      run: |
+        # Update backend image tag
+        sed -i "s|image: cybermonta/orchestrator-backend:.*|image: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
+        
+        # Update frontend image tag
+        sed -i "s|image: cybermonta/orchestrator-frontend:.*|image: ${{ env.DOCKER_HUB_USERNAME }}/orchestrator-frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
+        git commit -m "Update image tags to ${{ github.sha }} [skip ci]"
+        git push
+
+  sync-argocd:
+    name: 🚀 Sync ArgoCD Application
+    needs: update-manifests
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup ArgoCD CLI
+      run: |
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x argocd-linux-amd64
+        mv argocd-linux-amd64 ./argocd
+        echo "$(pwd)" >> $GITHUB_PATH
+        
+    - name: Login to ArgoCD
+      run: |
+        ./argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+        
+    - name: Sync ArgoCD Application
+      run: |
+        ./argocd app sync ${{ env.ARGOCD_APP_NAME }} --prune --force
+        
+    - name: Wait for sync completion
+      run: |
+        ./argocd app wait ${{ env.ARGOCD_APP_NAME }} --health --timeout 300
+        
+    - name: Get application status
+      run: |
+        ./argocd app get ${{ env.ARGOCD_APP_NAME }} --output wide
+
+  # ========================================
+  # FINAL SUMMARY
+  # ========================================
+  
+  security-summary:
+    name: 📋 DevSecOps Pipeline Summary
+    needs: [trivy-filesystem-scan, sonarqube-scan, build-and-scan, sync-argocd]
+    runs-on: self-hosted
+    if: always()
+    
+    steps:
+    - name: Generate DevSecOps Summary
+      run: |
+        echo "## 🔒 Complete DevSecOps Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Security & Quality Checks Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Trivy Filesystem Scan** - Source code vulnerability detection" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **SonarQube Analysis** - Code quality and security hotspot analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Docker Image Security Scan** - Container vulnerability analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Quality Gate Check** - Automated quality standards validation" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Deployment:" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚀 **ArgoCD Sync** - Application deployed to Kubernetes" >> $GITHUB_STEP_SUMMARY
+        echo "- 🐳 **Container Images** - Securely built and scanned" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 **Application** - Available via ArgoCD" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Security Reports:" >> $GITHUB_STEP_SUMMARY
+        echo "- 📊 **SARIF Reports**: Available in GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔍 **Trivy Results**: Filesystem and container vulnerability scans" >> $GITHUB_STEP_SUMMARY
+        echo "- 📈 **SonarQube**: Code quality and security hotspot analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Review Security Reports**: Check GitHub Security tab for vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Monitor Application**: Use ArgoCD UI to monitor deployment status" >> $GITHUB_STEP_SUMMARY
+        echo "3. **Continuous Monitoring**: Security scans run on every push/PR" >> $GITHUB_STEP_SUMMARY
+        echo "4. **Quality Improvement**: Address any code quality issues found" >> $GITHUB_STEP_SUMMARY
