@@ -56,3 +56,96 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Build and Deploy (only if Quality Gate passes)
+  build-and-deploy:
+    name: 🚀 Build and Deploy
+    needs: sonarqube-scan
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          
+      - name: Build and push backend image
+        run: |
+          docker build -t cybermonta/orchestrator-backend:${{ github.sha }} backend_orchestrator
+          docker build -t cybermonta/orchestrator-backend:latest backend_orchestrator
+          docker push cybermonta/orchestrator-backend:${{ github.sha }}
+          docker push cybermonta/orchestrator-backend:latest
+          
+      - name: Build and push frontend image
+        run: |
+          docker build -t cybermonta/orchestrator-frontend:${{ github.sha }} frontend_orchestrator
+          docker build -t cybermonta/orchestrator-frontend:latest frontend_orchestrator
+          docker push cybermonta/orchestrator-frontend:${{ github.sha }}
+          docker push cybermonta/orchestrator-frontend:latest
+
+  # Update Kubernetes manifests with new image tags
+  update-manifests:
+    name: 📝 Update Manifests
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Update image tags in manifests
+      run: |
+        # Update backend image tag
+        sed -i "s|image: cybermonta/orchestrator-backend:.*|image: cybermonta/orchestrator-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
+        
+        # Update frontend image tag
+        sed -i "s|image: cybermonta/orchestrator-frontend:.*|image: cybermonta/orchestrator-frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
+        git commit -m "Update image tags to ${{ github.sha }} [skip ci]"
+        git push
+
+  # Sync ArgoCD Application
+  sync-argocd:
+    name: 🚀 Sync ArgoCD Application
+    needs: update-manifests
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup ArgoCD CLI
+      run: |
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x argocd-linux-amd64
+        mv argocd-linux-amd64 ./argocd
+        echo "$(pwd)" >> $GITHUB_PATH
+        
+    - name: Login to ArgoCD
+      run: |
+        ./argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+        
+    - name: Sync ArgoCD Application
+      run: |
+        ./argocd app sync my-orchestrator-app --prune --force
+        
+    - name: Wait for sync completion
+      run: |
+        ./argocd app wait my-orchestrator-app --health --timeout 300
+        
+    - name: Get application status
+      run: |
+        ./argocd app get my-orchestrator-app --output wide

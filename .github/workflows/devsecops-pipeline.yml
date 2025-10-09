@@ -63,8 +63,13 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
         
+    - name: Test SonarQube connectivity
+      run: |
+        echo "Testing SonarQube connectivity..."
+        curl -f http://localhost:30900/api/system/status || curl -f http://192.168.11.143:30900/api/system/status
+        
     - name: Run SonarQube analysis
-      uses: sonarqube-quality-gate-action@master
+      uses: sonarsource/sonarqube-scan-action@master
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: http://localhost:30900
