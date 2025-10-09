@@ -1,0 +1,59 @@
+name: Trivy Security Scan Only
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  trivy-filesystem-scan:
+    name: 🔍 Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        severity: 'CRITICAL,HIGH'
+        ignore-unfixed: false
+        
+    - name: Display scan results
+      run: |
+        echo "✅ Trivy filesystem scan completed"
+        echo "📊 Check the output above for any CRITICAL or HIGH vulnerabilities"
+
+  trivy-image-scan:
+    name: 🐳 Trivy Image Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy on base images
+      run: |
+        echo "🔍 Scanning common base images for vulnerabilities..."
+        
+        # Scan Node.js base image
+        docker run --rm aquasec/trivy image node:18-alpine --format table --severity CRITICAL,HIGH
+        
+        # Scan Nginx base image  
+        docker run --rm aquasec/trivy image nginx:alpine --format table --severity CRITICAL,HIGH
+        
+        echo "✅ Base image scans completed"
+        
+    - name: Display summary
+      run: |
+        echo "🎉 Trivy image scanning completed"
+        echo "📊 Base images scanned: node:18-alpine, nginx:alpine"
+        echo "🔍 Focus on CRITICAL and HIGH severity vulnerabilities"
