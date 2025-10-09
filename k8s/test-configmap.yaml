@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: orchestrator
+  labels:
+    app: orchestrator
+    test: "true"
+data:
+  test-message: "Hello from ArgoCD test!"
+  test-timestamp: "2025-01-02"
+  test-version: "1.0.0"
