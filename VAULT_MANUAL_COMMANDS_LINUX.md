@@ -141,10 +141,10 @@ kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/jwt \
 ### **Store MongoDB Credentials**
 
 ```bash
-kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/mongodb \
+kubectl exec -n vault vault-0 -- vault kv put orchestrator/mongodb \
   uri="mongodb://mongo-0.mongo-service.default.svc.cluster.local:27017,mongo-1.mongo-service.default.svc.cluster.local:27017/containersDB?replicaSet=rs0" \
-  username="admin" \
-  password="your-mongodb-password"
+  username="zitounimontassar" \
+  password="R7XuZLoVK4QCFw0P"
 ```
 
 ### **Store Docker Registry Credentials**
@@ -164,7 +164,7 @@ kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/app \
   node_env="production" \
   port="5000"
 ```
-
+zitounimontassar:R7XuZLoVK4QCFw0P
 ---
 
 ## ✅ **Step 11: Verify Secrets Stored**
