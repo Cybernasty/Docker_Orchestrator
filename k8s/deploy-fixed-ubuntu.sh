@@ -77,3 +77,16 @@ echo "   kubectl describe pods -n orchestrator"
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+

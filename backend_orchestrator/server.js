@@ -13,6 +13,22 @@ import { errorHandler } from "./utils/errors.js";
 import config from "./config/config.js";
 import { authenticateJWT } from "./middleware/auth.js";
 import jwt from "jsonwebtoken";
+import Docker from "dockerode";
+
+// Initialize Docker connection with proper configuration
+const dockerConfig = {};
+if (config.dockerHost && config.dockerHost.startsWith('tcp://')) {
+  // Use TCP connection (for remote Docker daemon)
+  const url = new URL(config.dockerHost);
+  dockerConfig.host = url.hostname;
+  dockerConfig.port = url.port || 2375;
+  console.log(`🔗 WebSocket using Docker TCP connection: ${config.dockerHost}`);
+} else {
+  // Use socket connection (for local Docker daemon)
+  dockerConfig.socketPath = config.dockerSocket;
+  console.log(`🔗 WebSocket using Docker socket: ${config.dockerSocket}`);
+}
+const docker = new Docker(dockerConfig);
 
 const app = express();
 
@@ -105,18 +121,32 @@ app.use('*', (req, res) => {
   });
 });
 
-// Error handling middleware (must be last)
-app.use(errorHandler);
-
 // WebSocket server setup
 const wss = new WebSocketServer({ server });
 
+// Add a simple test endpoint to verify WebSocket server is working
+app.get('/ws-test', (req, res) => {
+  res.json({ 
+    message: 'WebSocket server is running',
+    timestamp: new Date().toISOString(),
+    clients: wss.clients.size
+  });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
 // WebSocket connection handling
 wss.on("connection", (ws, req) => {
+  console.log("🔗 New WebSocket connection attempt from:", req.socket.remoteAddress);
+  
   // Parse token from query string
   const url = new URL(req.url, `http://${req.headers.host}`);
   const token = url.searchParams.get("token");
   let user = null;
+  
+  console.log("🔑 Token received:", token ? "Yes" : "No");
+  console.log("🌐 Full URL:", req.url);
 
   if (!token) {
     ws.send(JSON.stringify({ error: "Missing authentication token", timestamp: new Date().toISOString() }));
@@ -126,8 +156,9 @@ wss.on("connection", (ws, req) => {
 
   try {
     user = jwt.verify(token, config.jwtSecret);
-    // Optionally, you can check user.id/email here
+    console.log(`✅ Token verified for user: ${user.email}`);
   } catch (err) {
+    console.log("❌ Token verification failed:", err.message);
     ws.send(JSON.stringify({ error: "Invalid or expired token", timestamp: new Date().toISOString() }));
     ws.close();
     return;
@@ -146,23 +177,23 @@ wss.on("connection", (ws, req) => {
   ws.isAlive = true;
   ws.on('pong', heartbeat);
 
-  ws.once("message", (message) => {
-    let containerId, command;
+  ws.once("message", async (message) => {
+    let containerId, containerName;
     try {
       const data = JSON.parse(message);
-      ({ containerId, command } = data);
+      ({ containerId, containerName } = data);
       
-      // Validate container ID and command
-      if (!containerId || !command) {
+      // Validate container ID
+      if (!containerId) {
         ws.send(JSON.stringify({ 
-          error: "Missing containerId or command",
+          error: "Missing containerId",
           timestamp: new Date().toISOString()
         }));
         ws.close();
         return;
       }
 
-      console.log(`Executing command: ${command} on container ${containerId}`);
+      console.log(`Starting interactive shell for container ${containerId} (${containerName || 'unnamed'})`);
       isAuthenticated = true;
 
     } catch (parseError) {
@@ -174,16 +205,75 @@ wss.on("connection", (ws, req) => {
       return;
     }
 
-    // Spawn Docker exec process
-    shell = spawn("docker", [
-      "exec",
-      "-it",
-      containerId,
-      "sh"
-    ]);
+    // First, check if container exists and is running
+    try {
+      console.log(`🔍 Checking container: ${containerId}`);
+      const container = docker.getContainer(containerId);
+      const containerInfo = await container.inspect();
+      
+      console.log(`📦 Container status: ${containerInfo.State.Status}`);
+      
+      if (containerInfo.State.Status !== 'running') {
+        const errorMsg = `Container ${containerId} is not running (status: ${containerInfo.State.Status})`;
+        console.log(`❌ ${errorMsg}`);
+        ws.send(JSON.stringify({ 
+          error: errorMsg,
+          timestamp: new Date().toISOString()
+        }));
+        ws.close();
+        return;
+      }
+      
+      console.log(`✅ Container ${containerId} is running`);
+    } catch (inspectError) {
+      console.error(`❌ Container inspect error:`, inspectError.message);
+      console.error(`❌ Error details:`, {
+        statusCode: inspectError.statusCode,
+        json: inspectError.json,
+        message: inspectError.message
+      });
+      ws.send(JSON.stringify({ 
+        error: `Container ${containerId} not found or not accessible: ${inspectError.message}`,
+        timestamp: new Date().toISOString()
+      }));
+      ws.close();
+      return;
+    }
+
+    // Create Docker exec session using dockerode for interactive shell
+    console.log(`🐳 Creating interactive shell session for container: ${containerId}`);
+    console.log(`🔐 Authenticated user: ${user.email} (role: ${user.role})`);
+    
+    const container = docker.getContainer(containerId);
+    
+    // Create an interactive shell session (not tied to the logged-in user)
+    // The shell runs as the container's default user (usually root)
+    const exec = await container.exec({
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: true,  // Enable TTY for interactive session
+      Cmd: ['/bin/sh']  // Start an interactive shell
+    });
+    
+    const stream = await exec.start({ 
+      hijack: true, 
+      stdin: true,
+      Tty: true
+    });
+    
+    // Store the stream for later use
+    shell = { stream, killed: false };
+    console.log(`🐳 Interactive shell session created successfully`);
+    
+    // Send welcome message
+    ws.send(JSON.stringify({ 
+      output: `✅ Shell connected to container: ${containerName || containerId}\n`,
+      timestamp: new Date().toISOString()
+    }));
 
     // Send output from the container to the WebSocket client
-    shell.stdout.on("data", (data) => {
+    shell.stream.on("data", (data) => {
       if (ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({ 
           output: data.toString(),
@@ -192,32 +282,25 @@ wss.on("connection", (ws, req) => {
       }
     });
 
-    shell.stderr.on("data", (data) => {
+    shell.stream.on("error", (error) => {
+      console.error("Docker exec stream error:", error);
       if (ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({ 
-          error: data.toString(),
+          error: error.toString(),
           timestamp: new Date().toISOString()
         }));
       }
     });
 
-    shell.on("close", (code) => {
+    shell.stream.on("end", () => {
+      console.log(`🐳 Docker exec stream ended`);
       if (ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({ 
-          message: `Shell closed with code ${code}`,
+          message: `Shell session ended`,
           timestamp: new Date().toISOString()
         }));
       }
-      ws.close();
-    });
-
-    shell.on("error", (error) => {
-      if (ws.readyState === ws.OPEN) {
-        ws.send(JSON.stringify({ 
-          error: `Shell error: ${error.message}`,
-          timestamp: new Date().toISOString()
-        }));
-      }
+      shell.killed = true;
       ws.close();
     });
 
@@ -226,7 +309,20 @@ wss.on("connection", (ws, req) => {
       if (shell && !shell.killed && isAuthenticated) {
         try {
           const inputStr = input.toString();
-          shell.stdin.write(inputStr + "\n");
+          // Check if it's a JSON command or raw input
+          if (inputStr.startsWith('{')) {
+            try {
+              const data = JSON.parse(inputStr);
+              if (data.command) {
+                shell.stream.write(data.command + "\n");
+              }
+            } catch (parseError) {
+              // If JSON parsing fails, treat as raw input
+              shell.stream.write(inputStr + "\n");
+            }
+          } else {
+            shell.stream.write(inputStr + "\n");
+          }
         } catch (error) {
           console.error("Error writing to shell:", error);
         }
@@ -237,14 +333,24 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => {
     console.log("❌ WebSocket connection closed");
     if (shell && !shell.killed) {
-      shell.kill();
+      try {
+        shell.stream.end();
+        shell.killed = true;
+      } catch (e) {
+        console.error("Error closing shell stream:", e);
+      }
     }
   });
 
   ws.on("error", (error) => {
     console.error("WebSocket error:", error);
     if (shell && !shell.killed) {
-      shell.kill();
+      try {
+        shell.stream.end();
+        shell.killed = true;
+      } catch (e) {
+        console.error("Error closing shell stream:", e);
+      }
     }
   });
 });

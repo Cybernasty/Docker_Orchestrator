@@ -11,7 +11,20 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem("token");
     if (token) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      setUser({ token });
+      // Try to decode the token to get user info
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser({ 
+          token,
+          id: payload.id,
+          email: payload.email,
+          role: payload.role
+        });
+      } catch (error) {
+        // If token is invalid, remove it
+        localStorage.removeItem("token");
+        delete axios.defaults.headers.common["Authorization"];
+      }
     }
   }, []);
 
@@ -30,6 +43,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    // Redirect to login page
+    window.location.href = "/";
   };
 
   return (

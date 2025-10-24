@@ -24,10 +24,10 @@ const docker = new Docker(dockerConfig);
 export const checkDockerDaemon = async () => {
   try {
     await docker.ping();
-    console.log("✅ Docker daemon is available");
+    console.log("Docker daemon is available");
     return true;
   } catch (error) {
-    console.error("❌ Docker daemon is not available:", error.message);
+    console.error("Docker daemon is not available:", error.message);
     throw new DockerError("Docker daemon is not available", 503, "ping");
   }
 };
@@ -94,7 +94,7 @@ export const syncContainersToDB = async () => {
             memoryLimit = stats.memory_stats.limit || 0;
           }
         } catch (statsError) {
-          console.warn(`⚠️ Could not get stats for container ${container.Id}:`, statsError.message);
+          console.warn(`Could not get stats for container ${container.Id}:`, statsError.message);
         }
 
         await Container.findOneAndUpdate(
@@ -113,14 +113,14 @@ export const syncContainersToDB = async () => {
           { upsert: true, new: true }
         );
       } catch (containerError) {
-        console.error(`❌ Error syncing container ${container.Id}:`, containerError.message);
+        console.error(`Error syncing container ${container.Id}:`, containerError.message);
         // Continue with other containers
       }
     }
 
-    console.log("✅ Containers synced to DB successfully!");
+    console.log("Containers synced to DB successfully!");
   } catch (error) {
-    console.error("❌ Error syncing containers to DB:", error.message);
+    console.error("Error syncing containers to DB:", error.message);
     throw new DockerError(`Failed to sync containers: ${error.message}`, 500, "sync");
   }
 };
@@ -131,7 +131,7 @@ export const fetchContainers = async () => {
     const containers = await Container.find().sort({ createdAt: -1 });
     return containers;
   } catch (error) {
-    console.error("❌ Error fetching containers from DB:", error.message);
+    console.error("Error fetching containers from DB:", error.message);
     throw new ContainerError(`Failed to fetch containers: ${error.message}`, 500);
   }
 };
@@ -175,12 +175,12 @@ export const startContainer = async (containerId) => {
       }
     );
 
-    console.log(`✅ Container ${containerId} started successfully`);
+    console.log(`Container ${containerId} started successfully`);
   } catch (error) {
     if (error.name === 'NotFoundError') {
       throw error;
     }
-    console.error(`❌ Error starting container ${containerId}:`, error.message);
+    console.error(`Error starting container ${containerId}:`, error.message);
     throw new DockerError(`Failed to start container: ${error.message}`, 500, "start");
   }
 };
@@ -208,12 +208,12 @@ export const stopContainer = async (containerId) => {
       }
     );
 
-    console.log(`✅ Container ${containerId} stopped successfully`);
+    console.log(`Container ${containerId} stopped successfully`);
   } catch (error) {
     if (error.name === 'NotFoundError') {
       throw error;
     }
-    console.error(`❌ Error stopping container ${containerId}:`, error.message);
+    console.error(`Error stopping container ${containerId}:`, error.message);
     throw new DockerError(`Failed to stop container: ${error.message}`, 500, "stop");
   }
 };
@@ -240,7 +240,7 @@ export const removeContainer = async (containerId) => {
     if (error.name === 'NotFoundError') {
       throw error;
     }
-    console.error(`❌ Error removing container ${containerId}:`, error.message);
+    console.error(`Error removing container ${containerId}:`, error.message);
     throw new DockerError(`Failed to remove container: ${error.message}`, 500, "remove");
   }
 };
@@ -344,31 +344,74 @@ export const getContainerStats = async (containerId) => {
       throw new NotFoundError(`Container ${containerId}`);
     }
     
+    // Get two consecutive stats to calculate CPU delta properly
+    const stats1 = await container.stats({ stream: false });
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
     const stats = await container.stats({ stream: false });
     
     if (!stats) {
       throw new DockerError("Could not retrieve container stats", 500, "stats");
     }
     
-    // Calculate CPU usage percentage
-    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-    const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+    // Calculate CPU usage percentage using the two consecutive calls
+    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats1.cpu_stats.cpu_usage.total_usage;
+    const systemDelta = stats.cpu_stats.system_cpu_usage - stats1.cpu_stats.system_cpu_usage;
     const cpuUsage = systemDelta > 0 ? (cpuDelta / systemDelta) * 100 : 0;
     
+    
+    // Calculate memory usage
+    const memoryUsage = stats.memory_stats.usage || 0;
+    const memoryLimit = stats.memory_stats.limit || 0;
+    const memoryPercentage = memoryLimit > 0 ? (memoryUsage / memoryLimit) * 100 : 0;
+    
+    // Calculate network I/O
+    let networkRx = 0;
+    let networkTx = 0;
+    if (stats.networks) {
+      Object.values(stats.networks).forEach(network => {
+        networkRx += network.rx_bytes || 0;
+        networkTx += network.tx_bytes || 0;
+      });
+    }
+    
+    // Calculate block I/O
+    let blockRead = 0;
+    let blockWrite = 0;
+    if (stats.blkio_stats && stats.blkio_stats.io_service_bytes_recursive) {
+      stats.blkio_stats.io_service_bytes_recursive.forEach(io => {
+        if (io.op === 'Read') blockRead += io.value || 0;
+        if (io.op === 'Write') blockWrite += io.value || 0;
+      });
+    }
+    
     return {
-      cpu: {
-        usage: Math.round(cpuUsage * 100) / 100,
-        total: stats.cpu_stats.cpu_usage.total_usage,
-        system: stats.cpu_stats.system_cpu_usage
-      },
-      memory: {
-        usage: stats.memory_stats.usage || 0,
-        limit: stats.memory_stats.limit || 0,
-        percentage: stats.memory_stats.limit > 0 ? 
-          Math.round((stats.memory_stats.usage / stats.memory_stats.limit) * 100 * 100) / 100 : 0
-      },
-      network: stats.networks || {},
-      timestamp: new Date()
+      cpuUsage: Math.round(cpuUsage * 100) / 100,
+      memoryUsage: Math.round(memoryPercentage * 100) / 100,
+      memoryUsed: memoryUsage,
+      memoryLimit: memoryLimit,
+      networkRx: networkRx,
+      networkTx: networkTx,
+      blockRead: blockRead,
+      blockWrite: blockWrite,
+      processes: stats.pids_stats?.current || 0,
+      timestamp: new Date().toISOString(),
+      raw: {
+        cpu: {
+          usage: Math.round(cpuUsage * 100) / 100,
+          total: stats.cpu_stats.cpu_usage.total_usage,
+          system: stats.cpu_stats.system_cpu_usage
+        },
+        memory: {
+          usage: memoryUsage,
+          limit: memoryLimit,
+          percentage: memoryPercentage
+        },
+        network: stats.networks || {},
+        blockIO: {
+          read: blockRead,
+          write: blockWrite
+        }
+      }
     };
   } catch (error) {
     if (error.name === 'NotFoundError') {

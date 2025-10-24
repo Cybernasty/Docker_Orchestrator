@@ -1,0 +1,101 @@
+\subsection{Product Backlog}
+In Scrum, it is essential to maintain a Product Backlog that includes both functional and technical features of the product. Each item in the backlog is represented as a User Story, detailing a specific requirement of the project.
+
+\begin{longtable}{|c|c|p{7cm}|c|c|}
+\caption{User Stories and Task Breakdown by Sprint} \label{tab:userstories_sprint} \\
+\hline
+\textbf{Sprint} & \textbf{ID} & \textbf{User Story} & \textbf{Priority} & \textbf{Duration} \\
+\hline
+\endfirsthead
+\multicolumn{5}{c}%
+{{\bfseries \tablename\ \thetable{} -- continued from previous page}} \\
+\hline
+\textbf{Sprint} & \textbf{ID} & \textbf{User Story} & \textbf{Priority} & \textbf{Duration} \\
+\hline
+\endhead
+\hline \multicolumn{5}{r}{{Continued on next page}} \\
+\endfoot
+\hline
+\endlastfoot
+
+% ============ RELEASE 1: CORE PLATFORM FOUNDATION AND FEATURES ============
+\multicolumn{5}{|c|}{\cellcolor{blue!25}\textbf{RELEASE 1: Core Platform Foundation and Features}} \\
+\hline
+
+% Sprint 1 - Backend Foundation
+1 & US-01 & As a backend developer, I want to build a RESTful API with Express.js so that the frontend can communicate with Docker services & High & 4 days \\ \hline
+1 & US-02 & As a backend developer, I want to integrate MongoDB with replica sets so that data is persisted reliably & High & 3 days \\ \hline
+1 & US-03 & As a developer, I want to implement JWT-based authentication so that users can securely access the platform & High & 3 days \\ \hline
+1 & US-04 & As a backend developer, I want to create error handling middleware so that API errors are consistent and informative & Medium & 2 days \\ \hline
+
+% Sprint 2 - User Management and Frontend Foundation
+2 & US-05 & As an admin, I want role-based access control (Admin, Operator, Viewer) so that user permissions are properly managed & High & 4 days \\ \hline
+2 & US-06 & As a frontend developer, I want to create a responsive React application with Tailwind CSS so that users have an intuitive interface & High & 5 days \\ \hline
+2 & US-07 & As a user, I want a login page with form validation so that I can securely authenticate to the system & High & 3 days \\ \hline
+2 & US-08 & As an admin, I want a user management interface to create, edit, and delete users so that I can control access & High & 2 days \\ \hline
+
+% Sprint 3 - Core Container Management
+3 & US-09 & As a user, I want to view all running and stopped Docker containers so that I can monitor my infrastructure & High & 3 days \\ \hline
+3 & US-10 & As an operator, I want to start, stop, and restart containers so that I can manage container lifecycle & High & 4 days \\ \hline
+3 & US-11 & As an operator, I want to view container logs in real-time so that I can troubleshoot issues & High & 4 days \\ \hline
+3 & US-12 & As a user, I want a dashboard showing container statistics so that I have an overview of my system & High & 3 days \\ \hline
+
+% Sprint 4 - Image and Volume Management
+4 & US-13 & As a user, I want to view all Docker images so that I can see available images in my registry & Medium & 3 days \\ \hline
+4 & US-14 & As an operator, I want to pull images from registries and build custom images so that I can deploy applications & High & 4 days \\ \hline
+4 & US-15 & As a user, I want to manage Docker volumes so that I can persist container data & Medium & 3 days \\ \hline
+4 & US-16 & As an admin, I want to create containers from images with custom configurations so that I can deploy services & High & 4 days \\ \hline
+
+% Sprint 5 - Monitoring and User Experience
+5 & US-17 & As a user, I want real-time CPU, memory, and network metrics for containers so that I can monitor resource usage & High & 5 days \\ \hline
+5 & US-18 & As a user, I want visual charts and sparklines showing metric trends so that I can identify performance issues & High & 4 days \\ \hline
+5 & US-19 & As a user, I want a profile page to update my information and change my password so that I can manage my account & Medium & 2 days \\ \hline
+5 & US-20 & As a user, I want application settings (notifications, appearance, Docker registry) so that I can customize my experience & Medium & 2 days \\ \hline
+5 & US-21 & As a user, I want terminal/shell access to containers so that I can execute commands for debugging & Medium & 2 days \\ \hline
+
+% ============ RELEASE 2: DEPLOYMENT PART ============
+\multicolumn{5}{|c|}{\cellcolor{green!25}\textbf{RELEASE 2: Deployment Part - Kubernetes and CI/CD}} \\
+\hline
+
+% Sprint 6 - Containerization and Kubernetes Setup
+6 & US-22 & As a DevOps engineer, I want to containerize the application with Docker so that it can be deployed consistently & High & 3 days \\ \hline
+6 & US-23 & As a DevOps engineer, I want to create Kubernetes manifests (Deployments, Services, ConfigMaps) for all services so that the platform can run on Kubernetes & High & 5 days \\ \hline
+6 & US-24 & As a DevOps engineer, I want to configure Kubernetes Secrets for sensitive data so that credentials are securely managed & High & 2 days \\ \hline
+6 & US-25 & As a DevOps engineer, I want Kubernetes Ingress configured with SSL/TLS so that the application is accessible via HTTPS & High & 3 days \\ \hline
+
+% Sprint 7 - CI/CD Pipeline
+7 & US-26 & As a DevOps engineer, I want a CI/CD pipeline with GitHub Actions for automated testing so that code quality is maintained & High & 4 days \\ \hline
+7 & US-27 & As a DevOps engineer, I want automated Docker image building and pushing to registry so that deployments are streamlined & High & 3 days \\ \hline
+7 & US-28 & As a DevOps engineer, I want ArgoCD installed and configured for GitOps so that Kubernetes deployments are declarative & High & 5 days \\ \hline
+7 & US-29 & As a DevOps engineer, I want automated deployment workflows triggered by Git commits so that changes are deployed automatically & High & 2 days \\ \hline
+
+% Sprint 8 - Monitoring and High Availability
+8 & US-30 & As a DevOps engineer, I want Prometheus installed and configured so that metrics are collected from all services & High & 4 days \\ \hline
+8 & US-31 & As a DevOps engineer, I want Grafana dashboards for monitoring containers, pods, and system resources so that I can visualize metrics & High & 4 days \\ \hline
+8 & US-32 & As a DevOps engineer, I want alerting rules in Prometheus so that I am notified of critical issues & Medium & 2 days \\ \hline
+8 & US-33 & As a DevOps engineer, I want Horizontal Pod Autoscaling (HPA) configured so that the platform scales based on resource usage & High & 3 days \\ \hline
+8 & US-34 & As a DevOps engineer, I want MongoDB configured with replica sets and authentication so that the database is highly available & High & 3 days \\ \hline
+
+% ============ RELEASE 3: SECURITY PART ============
+\multicolumn{5}{|c|}{\cellcolor{red!25}\textbf{RELEASE 3: Security Part - Scanning, Vault, Policies, and Compliance}} \\
+\hline
+
+% Sprint 9 - Security Scanning and Secret Management
+9 & US-35 & As a security engineer, I want SonarQube integrated for code quality and vulnerability analysis so that code security is ensured & High & 3 days \\ \hline
+9 & US-36 & As a security engineer, I want Trivy integrated for container image vulnerability scanning so that Docker images are secure & High & 3 days \\ \hline
+9 & US-37 & As a security engineer, I want OWASP ZAP integrated for dynamic application security testing so that runtime vulnerabilities are detected & High & 4 days \\ \hline
+9 & US-38 & As a security engineer, I want HashiCorp Vault deployed for secure secret management so that sensitive data is encrypted and protected & High & 4 days \\ \hline
+9 & US-39 & As a DevOps engineer, I want application secrets migrated to Vault so that credentials are centrally managed and rotated & High & 2 days \\ \hline
+
+% Sprint 10 - Security Policies, Network Security, and Compliance
+10 & US-40 & As a security engineer, I want automated security scans in the CI/CD pipeline so that vulnerabilities are caught before deployment & High & 2 days \\ \hline
+10 & US-41 & As a security engineer, I want container security policies (privileged mode, read-only filesystem, no-new-privileges) implemented so that containers follow security best practices & High & 3 days \\ \hline
+10 & US-42 & As a security engineer, I want Kubernetes Network Policies configured so that pod-to-pod communication is restricted and segmented & High & 3 days \\ \hline
+10 & US-43 & As a security engineer, I want a security dashboard showing scan results, CVE details, and security metrics so that vulnerabilities can be tracked and prioritized & High & 4 days \\ \hline
+10 & US-44 & As a security engineer, I want security audit logs for all user actions and API calls so that compliance requirements are met & Medium & 2 days \\ \hline
+10 & US-45 & As a user, I want to view security scan results for my containers so that I can address identified vulnerabilities & Medium & 2 days \\ \hline
+
+\end{longtable}
+
+
+

@@ -1,103 +1,107 @@
 import { useEffect, useState } from "react";
-import ContainersList from "./ContainersList";
 import Sidebar from "../common/Sidebar";
 import Topbar from "../common/Topbar";
-import { FaCubes, FaPlay, FaStop, FaHeart, FaExclamationTriangle, FaHdd, FaImages, FaNetworkWired, FaCogs } from "react-icons/fa";
+import ContainerStatusWidget from "./ContainerStatusWidget";
+import QuickActionsWidget from "./QuickActionsWidget";
+import SystemStatusWidget from "./SystemStatusWidget";
+import RecentActivityWidget from "./RecentActivityWidget";
+import ContainerOverviewWidget from "./ContainerOverviewWidget";
 
 const Home = () => {
-  const [stats, setStats] = useState({ total: 0, running: 0, stopped: 0, healthy: 0, unhealthy: 0 });
+  const [stats, setStats] = useState({ 
+    total: 0, 
+    running: 0, 
+    stopped: 0, 
+    healthy: 0, 
+    unhealthy: 0,
+    paused: 0
+  });
+  const [systemStats, setSystemStats] = useState({
+    cpu: 25,
+    memory: 45,
+    network: 70,
+    uptime: "15d 8h 32m",
+    sla: "99.9%"
+  });
   const [containers, setContainers] = useState([]);
 
   useEffect(() => {
     // Fetch containers for stats
     const fetchContainers = async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/containers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setContainers(data.containers || []);
-      const running = data.containers.filter(c => c.status === "running").length;
-      const stopped = data.containers.filter(c => c.status === "stopped" || c.status === "exited").length;
-      // For demo, healthy = running, unhealthy = stopped
-      setStats({
-        total: data.containers.length,
-        running,
-        stopped,
-        healthy: running,
-        unhealthy: stopped
-      });
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/containers", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setContainers(data.containers || []);
+        
+        const running = data.containers.filter(c => c.status === "running").length;
+        const stopped = data.containers.filter(c => c.status === "stopped" || c.status === "exited").length;
+        const paused = data.containers.filter(c => c.status === "paused").length;
+        
+        setStats({
+          total: data.containers.length,
+          running,
+          stopped,
+          paused,
+          healthy: running,
+          unhealthy: stopped,
+          networkUsage: Math.floor(Math.random() * 50) + 20 // Simulate network usage
+        });
+      } catch (error) {
+        console.error("Error fetching containers:", error);
+      }
     };
+    
     fetchContainers();
+    
+    // Simulate real-time system stats updates
+    const interval = setInterval(() => {
+      setSystemStats(prev => ({
+        cpu: Math.max(10, Math.min(90, prev.cpu + (Math.random() - 0.5) * 10)),
+        memory: Math.max(20, Math.min(85, prev.memory + (Math.random() - 0.5) * 5)),
+        network: Math.max(30, Math.min(95, prev.network + (Math.random() - 0.5) * 8))
+      }));
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Demo values for other resources
-  const demoStats = {
-    stacks: 1,
-    images: 29,
-    imagesSize: '9.9 GB',
-    volumes: 27,
-    networks: 6
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Topbar />
         <main className="flex-1 p-8">
-          {/* Environment Info Panel */}
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <div className="font-semibold text-lg mb-2 flex items-center"><FaCogs className="mr-2 text-blue-600" /> Environment info</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div><span className="font-bold">Environment:</span> local <span className="ml-2 text-gray-400">Standalone 20.10.8</span></div>
-              <div><span className="font-bold">URL:</span> <span className="text-gray-600">/var/run/docker.sock</span></div>
-              <div><span className="font-bold">Tags:</span> -</div>
+          {/* Dashboard Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* Container Status Widget */}
+            <div className="lg:col-span-1">
+              <ContainerStatusWidget stats={stats} />
+            </div>
+            
+            {/* Quick Actions Widget */}
+            <div className="lg:col-span-1">
+              <QuickActionsWidget />
+            </div>
+            
+            {/* System Status Widget */}
+            <div className="lg:col-span-1">
+              <SystemStatusWidget systemStats={systemStats} />
             </div>
           </div>
-          {/* Stat Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-            <div className="bg-white rounded-lg shadow flex items-center p-6">
-              <FaCubes className="text-4xl text-blue-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{demoStats.stacks}</div>
-                <div className="text-gray-600">Stack</div>
-              </div>
+
+          {/* Bottom Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Activity Widget */}
+            <div>
+              <RecentActivityWidget />
             </div>
-            <div className="bg-white rounded-lg shadow flex items-center p-6">
-              <FaCubes className="text-4xl text-blue-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{stats.total}</div>
-                <div className="text-gray-600">Containers</div>
-                <div className="flex space-x-2 mt-1">
-                  <span className="text-green-600 flex items-center text-xs"><FaHeart className="mr-1" />{stats.healthy} healthy</span>
-                  <span className="text-blue-600 flex items-center text-xs"><FaPlay className="mr-1" />{stats.running} running</span>
-                  <span className="text-yellow-600 flex items-center text-xs"><FaExclamationTriangle className="mr-1" />{stats.unhealthy} unhealthy</span>
-                  <span className="text-red-600 flex items-center text-xs"><FaStop className="mr-1" />{stats.stopped} stopped</span>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow flex items-center p-6">
-              <FaImages className="text-4xl text-blue-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{demoStats.images}</div>
-                <div className="text-gray-600">Images</div>
-                <div className="text-blue-400 text-xs flex items-center mt-1"><FaHdd className="mr-1" />{demoStats.imagesSize}</div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow flex items-center p-6">
-              <FaHdd className="text-4xl text-blue-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{demoStats.volumes}</div>
-                <div className="text-gray-600">Volumes</div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow flex items-center p-6">
-              <FaNetworkWired className="text-4xl text-blue-600 mr-4" />
-              <div>
-                <div className="text-2xl font-bold">{demoStats.networks}</div>
-                <div className="text-gray-600">Networks</div>
-              </div>
+            
+            {/* Container Overview Widget */}
+            <div>
+              <ContainerOverviewWidget containerStats={stats} />
             </div>
           </div>
         </main>

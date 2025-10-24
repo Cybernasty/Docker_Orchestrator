@@ -1,13 +1,16 @@
 // API Configuration
 // Default to same-origin so Kubernetes frontend Nginx proxies /api to backend
 // Optionally override via REACT_APP_API_URL when needed (e.g., local dev)
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export const API_ENDPOINTS = {
   // Auth endpoints
   LOGIN: `${API_BASE_URL}/api/auth/login`,
   REGISTER: `${API_BASE_URL}/api/auth/register`,
   ADD_USER: `${API_BASE_URL}/api/auth/add-user`,
+  GET_USERS: `${API_BASE_URL}/api/auth/users`,
+  UPDATE_USER: (userId) => `${API_BASE_URL}/api/auth/users/${userId}`,
+  DELETE_USER: (userId) => `${API_BASE_URL}/api/auth/users/${userId}`,
   
   // Container endpoints
   CONTAINERS: `${API_BASE_URL}/api/containers`,

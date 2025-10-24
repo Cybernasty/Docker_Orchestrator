@@ -67,10 +67,7 @@ const ContainersList = () => {
   };
 
   const handleRemove = async (containerId) => {
-    if (!window.confirm("Are you sure you want to remove this container?")) {
-      return;
-    }
-    
+    if (!window.confirm("Are you sure you want to remove this container?")) return;
     try {
       const token = localStorage.getItem("token");
       await axios.delete(API_ENDPOINTS.CONTAINER_DELETE(containerId), {
@@ -84,45 +81,47 @@ const ContainersList = () => {
   };
 
   const handleShowLogs = async (containerId) => {
-    setShowLogs(containerId);
-    setLogs("Loading logs...");
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(API_ENDPOINTS.CONTAINER_LOGS(containerId), {
+      const response = await axios.get(API_ENDPOINTS.CONTAINER_LOGS(containerId), {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setLogs(res.data.logs || "No logs available.");
+      setLogs(response.data.logs || "No logs available");
+      setShowLogs(containerId);
     } catch (err) {
-      setLogs(err.response?.data?.error?.message || "Failed to fetch logs.");
+      console.error("Error fetching logs:", err);
+      setLogs("Failed to fetch logs");
+      setShowLogs(containerId);
     }
   };
 
   const handleShowStats = async (containerId) => {
-    setShowStats(containerId);
-    setStats(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(API_ENDPOINTS.CONTAINER_STATS(containerId), {
+      const response = await axios.get(API_ENDPOINTS.CONTAINER_STATS(containerId), {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStats(res.data.stats || null);
+      setStats(response.data.stats);
+      setShowStats(containerId);
     } catch (err) {
-      setStats({ error: err.response?.data?.error?.message || "Failed to fetch stats." });
+      console.error("Error fetching stats:", err);
+      setStats(null);
+      setShowStats(containerId);
     }
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
       case 'running':
-        return <span className="badge badge-success badge-sm">running</span>;
+        return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">running</span>;
       case 'stopped':
-        return <span className="badge badge-error badge-sm">stopped</span>;
-      case 'restarting':
-        return <span className="badge badge-warning badge-sm">restarting</span>;
+        return <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">stopped</span>;
+      case 'paused':
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">paused</span>;
       case 'exited':
-        return <span className="badge badge-ghost badge-sm">exited</span>;
+        return <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">exited</span>;
       default:
-        return <span className="badge badge-ghost badge-sm">{status}</span>;
+        return <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">{status}</span>;
     }
   };
 
@@ -145,7 +144,7 @@ const ContainersList = () => {
       <table className="min-w-full bg-white border border-gray-200 rounded-lg">
         <thead>
           <tr className="bg-gray-100 text-xs uppercase text-gray-500">
-            <th className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></th>
+            <th className="px-4 py-2"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" /></th>
             <th className="px-4 py-2">Name</th>
             <th className="px-4 py-2">State</th>
             <th className="px-4 py-2">Quick Actions</th>
@@ -156,81 +155,222 @@ const ContainersList = () => {
           {containers.length > 0 ? (
             containers.map(container => (
               <tr key={container.containerId} className="hover:bg-blue-50 even:bg-gray-50 transition-all duration-150">
-                <td className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></td>
+                <td className="px-4 py-2"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" /></td>
                 <td className="px-4 py-2">
                   <a href="#" className="text-blue-600 hover:underline font-medium">{container.name}</a>
                 </td>
                 <td className="px-4 py-2">{getStatusBadge(container.status)}</td>
-                <td className="px-4 py-2 flex gap-2">
-                  {/* Logs and Stats: all roles */}
-                  <button className="btn btn-ghost btn-xs" title="Logs" onClick={() => handleShowLogs(container.containerId)}><FaFileAlt /></button>
-                  <button className="btn btn-ghost btn-xs" title="Stats" onClick={() => handleShowStats(container.containerId)}><FaChartBar /></button>
-                  {/* Only admin/operator: Terminal, Start, Stop, Remove */}
-                  {(user?.role === "admin" || user?.role === "operator") && (
-                    <>
-                      <button className="btn btn-ghost btn-xs" title="Terminal" onClick={() => setSelectedContainer(container.containerId)}><FaTerminal /></button>
-                      <button className="btn btn-ghost btn-xs" title="Start" onClick={() => handleStart(container.containerId)}><FaPlay /></button>
-                      <button className="btn btn-ghost btn-xs" title="Stop" onClick={() => handleStop(container.containerId)}><FaStop /></button>
-                      <button className="btn btn-ghost btn-xs" title="Remove" onClick={() => handleRemove(container.containerId)}><FaTrash /></button>
-                    </>
-                  )}
-                </td>
                 <td className="px-4 py-2">
-                  <a href="#" className="text-blue-600 hover:underline">{container.image}</a>
+                  <div className="flex gap-2">
+                    {/* Logs and Stats: all roles */}
+                    <button 
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors" 
+                      title="Logs" 
+                      onClick={() => handleShowLogs(container.containerId)}
+                    >
+                      <FaFileAlt className="text-sm" />
+                    </button>
+                    <button 
+                      className="p-2 text-green-600 hover:bg-green-100 rounded-md transition-colors" 
+                      title="Stats" 
+                      onClick={() => handleShowStats(container.containerId)}
+                    >
+                      <FaChartBar className="text-sm" />
+                    </button>
+                    <button 
+                      className="p-2 text-purple-600 hover:bg-purple-100 rounded-md transition-colors" 
+                      title="Terminal" 
+                      onClick={() => setSelectedContainer(container)}
+                    >
+                      <FaTerminal className="text-sm" />
+                    </button>
+                    
+                    {/* Start/Stop: admin/operator only */}
+                    {(user?.role === "admin" || user?.role === "operator") && (
+                      <>
+                        {container.status === "running" ? (
+                          <button 
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors" 
+                            title="Stop" 
+                            onClick={() => handleStop(container.containerId)}
+                          >
+                            <FaStop className="text-sm" />
+                          </button>
+                        ) : (
+                          <button 
+                            className="p-2 text-green-600 hover:bg-green-100 rounded-md transition-colors" 
+                            title="Start" 
+                            onClick={() => handleStart(container.containerId)}
+                          >
+                            <FaPlay className="text-sm" />
+                          </button>
+                        )}
+                        <button 
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors" 
+                          title="Remove" 
+                          onClick={() => handleRemove(container.containerId)}
+                        >
+                          <FaTrash className="text-sm" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
+                <td className="px-4 py-2 text-sm text-gray-600">{container.image}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={6} className="text-center py-8 text-gray-400">No containers found.</td>
+              <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                {error ? `Error: ${error}` : "No containers found"}
+              </td>
             </tr>
           )}
         </tbody>
       </table>
       {/* Logs Modal */}
       {showLogs && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl">
-            <h3 className="font-bold text-lg mb-2">Logs for {showLogs}</h3>
-            <pre className="bg-base-200 p-2 rounded text-xs max-h-96 overflow-auto">{logs}</pre>
-            <div className="modal-action">
-              <button className="btn" onClick={() => setShowLogs(null)}>Close</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="font-bold text-lg text-gray-800">Logs for {showLogs}</h3>
+            </div>
+            <div className="p-6 flex-1 overflow-auto">
+              <pre className="bg-gray-100 p-4 rounded text-xs max-h-96 overflow-auto whitespace-pre-wrap">{logs}</pre>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button 
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={() => setShowLogs(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Stats Modal */}
       {showStats && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl">
-            <h3 className="font-bold text-lg mb-2">Stats for {showStats}</h3>
-            {stats ? (
-              stats.error ? (
-                <div className="alert alert-error">{stats.error}</div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="font-bold text-lg text-gray-800">Stats for {showStats}</h3>
+            </div>
+            <div className="p-6 flex-1 overflow-auto">
+              {stats ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-100 p-4 rounded">
+                      <h4 className="font-semibold text-gray-800">CPU Usage</h4>
+                      <p className="text-2xl font-bold text-blue-600">{stats.cpuUsage || 0}%</p>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded">
+                      <h4 className="font-semibold text-gray-800">Memory Usage</h4>
+                      <p className="text-2xl font-bold text-green-600">{stats.memoryUsage || 0}%</p>
+                      <p className="text-sm text-gray-600">
+                        {formatBytes(stats.memoryUsed || 0)} / {formatBytes(stats.memoryLimit || 0)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-100 p-4 rounded">
+                      <h4 className="font-semibold text-gray-800">Network I/O</h4>
+                      <p className="text-sm text-gray-600">RX: {formatBytes(stats.networkRx || 0)}</p>
+                      <p className="text-sm text-gray-600">TX: {formatBytes(stats.networkTx || 0)}</p>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded">
+                      <h4 className="font-semibold text-gray-800">Block I/O</h4>
+                      <p className="text-sm text-gray-600">Read: {formatBytes(stats.blockRead || 0)}</p>
+                      <p className="text-sm text-gray-600">Write: {formatBytes(stats.blockWrite || 0)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-100 p-4 rounded">
+                    <h4 className="font-semibold text-gray-800">Processes</h4>
+                    <p className="text-2xl font-bold text-purple-600">{stats.processes || 0}</p>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500">
+                    Last updated: {new Date(stats.timestamp).toLocaleString()}
+                  </div>
+                </div>
               ) : (
-                <pre className="bg-base-200 p-2 rounded text-xs max-h-96 overflow-auto">{JSON.stringify(stats, null, 2)}</pre>
-              )
-            ) : (
-              <div>Loading stats...</div>
-            )}
-            <div className="modal-action">
-              <button className="btn" onClick={() => setShowStats(null)}>Close</button>
+                <p className="text-gray-500">No stats available</p>
+              )}
+              
+              {/* Volumes Section - Get from container data */}
+              {containers.find(c => c.containerId === showStats)?.volumes && (
+                <div className="mt-6 border-t pt-6">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                    <span className="mr-2">📂</span> Mounted Volumes
+                  </h4>
+                  {containers.find(c => c.containerId === showStats).volumes.length > 0 ? (
+                    <div className="space-y-3">
+                      {containers.find(c => c.containerId === showStats).volumes.map((vol, idx) => (
+                        <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Host Path:</span>
+                              <p className="text-gray-900 font-mono text-xs mt-1 break-all">{vol.host || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Container Path:</span>
+                              <p className="text-gray-900 font-mono text-xs mt-1 break-all">{vol.container || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Mode:</span>
+                              <p className="mt-1">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${vol.mode === 'rw' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                  {vol.mode === 'rw' ? '🔓 Read/Write' : '🔒 Read Only'}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No volumes mounted</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button 
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={() => setShowStats(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Terminal Modal */}
       {selectedContainer && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl">
-            <h3 className="font-bold text-lg mb-2">Terminal for {selectedContainer}</h3>
-            <TerminalComponent containerId={selectedContainer} />
-            <div className="modal-action">
-              <button className="btn" onClick={() => setSelectedContainer(null)}>Close</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="font-bold text-lg text-gray-800">Terminal - {selectedContainer.name}</h3>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <TerminalComponent container={selectedContainer} />
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button 
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={() => setSelectedContainer(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

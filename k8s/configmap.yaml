@@ -17,8 +17,11 @@ data:
   SSL_KEY_PATH: "/etc/ssl/private/server.key"
   SSL_CA_PATH: "/etc/ssl/certs/ca.crt"
   
-  # MongoDB Configuration
-  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orchestration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orchestration"
+  # MongoDB Configuration (Kubernetes MongoDB)
+  MONGODB_URI: "mongodb://admin:password123@mongo-0.mongo-service.default.svc.cluster.local:27017/containersDB?authSource=admin"
+  
+  # Or use MongoDB Atlas (uncomment and update with correct connection string):
+  # MONGODB_URI: "mongodb+srv://username:password@your-cluster.mongodb.net/containers?retryWrites=true&w=majority"
   
   # JWT Configuration
   JWT_SECRET: "your-super-secret-jwt-key-change-this-in-production"

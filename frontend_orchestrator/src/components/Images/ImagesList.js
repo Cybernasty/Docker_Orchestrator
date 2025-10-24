@@ -39,10 +39,10 @@ const ImagesList = () => {
 
   if (error) {
     return (
-      <div className="alert alert-error shadow-lg mb-4">
-        <div>
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="flex items-center justify-between">
           <span>Error: {error}</span>
-          <button onClick={() => setError(null)} className="btn btn-sm btn-ghost ml-4">×</button>
+          <button onClick={() => setError(null)} className="text-red-700 hover:text-red-900 ml-4">×</button>
         </div>
       </div>
     );
@@ -53,7 +53,7 @@ const ImagesList = () => {
       <table className="min-w-full bg-white border border-gray-200 rounded-lg">
         <thead>
           <tr className="bg-gray-100 text-xs uppercase text-gray-500">
-            <th className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></th>
+            <th className="px-4 py-2"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" /></th>
             <th className="px-4 py-2">Repository</th>
             <th className="px-4 py-2">Tag</th>
             <th className="px-4 py-2">Image ID</th>
@@ -68,7 +68,7 @@ const ImagesList = () => {
                 const [repo, tag] = repoTag.split(":");
                 return (
                   <tr key={img.Id + repoTag + idx} className="hover:bg-blue-50 even:bg-gray-50 transition-all duration-150">
-                    <td className="px-4 py-2"><input type="checkbox" className="checkbox checkbox-sm" /></td>
+                    <td className="px-4 py-2"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" /></td>
                     <td className="px-4 py-2">
                       <a href="#" className="text-blue-600 hover:underline font-medium">{repo}</a>
                     </td>

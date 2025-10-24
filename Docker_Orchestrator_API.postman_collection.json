@@ -1,0 +1,428 @@
+{
+	"info": {
+		"name": "Docker Orchestrator API",
+		"description": "Complete API collection for Docker Container Orchestrator Platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('auth_token', jsonData.token);",
+									"    pm.environment.set('auth_token', jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Containers",
+			"item": [
+				{
+					"name": "Get All Containers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers"]
+						}
+					}
+				},
+				{
+					"name": "Get Container By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Container Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId/logs?tail=100",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId", "logs"],
+							"query": [
+								{
+									"key": "tail",
+									"value": "100"
+								}
+							],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Container Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId", "stats"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Start Container",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId/start",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId", "start"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Stop Container",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId/stop",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId", "stop"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Remove Container",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Execute Command",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"ls -la\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/containers/:containerId/exec",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", ":containerId", "exec"],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "abc123"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Sync Containers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/sync",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", "sync"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Images",
+			"item": [
+				{
+					"name": "Get All Images",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/containers/images",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", "images"]
+						}
+					}
+				},
+				{
+					"name": "Build Image from Dockerfile",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dockerfileContent\": \"FROM nginx:alpine\\nCOPY index.html /usr/share/nginx/html/\",\n    \"imageName\": \"my-nginx\",\n    \"tag\": \"v1.0\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/containers/build-image",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", "build-image"]
+						}
+					}
+				},
+				{
+					"name": "Create Container from Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"imageName\": \"nginx:alpine\",\n    \"containerName\": \"my-nginx-container\",\n    \"ports\": [\n        {\n            \"host\": \"8080\",\n            \"container\": \"80\"\n        }\n    ],\n    \"environment\": [\n        {\n            \"key\": \"ENV_VAR\",\n            \"value\": \"value\"\n        }\n    ],\n    \"volumes\": [\n        {\n            \"host\": \"/host/path\",\n            \"container\": \"/container/path\",\n            \"mode\": \"rw\"\n        }\n    ],\n    \"network\": \"bridge\",\n    \"restartPolicy\": \"unless-stopped\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/containers/create",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", "create"]
+						}
+					}
+				},
+				{
+					"name": "Build and Create Container",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dockerfileContent\": \"FROM node:16-alpine\\nWORKDIR /app\\nCOPY package*.json ./\\nRUN npm install\\nCOPY . .\\nCMD [\\\"npm\\\", \\\"start\\\"]\",\n    \"imageName\": \"my-app\",\n    \"containerName\": \"my-app-container\",\n    \"tag\": \"latest\",\n    \"ports\": [\n        {\n            \"host\": \"3000\",\n            \"container\": \"3000\"\n        }\n    ],\n    \"environment\": [\n        {\n            \"key\": \"NODE_ENV\",\n            \"value\": \"production\"\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/containers/build-and-create",
+							"host": ["{{base_url}}"],
+							"path": ["api", "containers", "build-and-create"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User Management (Admin)",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Add User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"operator@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"operator\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/add-user",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "add-user"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newemail@example.com\",\n    \"password\": \"newpassword123\",\n    \"role\": \"admin\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/users/:userId",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "users", ":userId"],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "user_id_here"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/users/:userId",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "users", ":userId"],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "user_id_here"
+								}
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}
+
+

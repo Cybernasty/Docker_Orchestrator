@@ -33,7 +33,7 @@ const config = {
   
   // Rate limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX) || 100, // requests per window
+  rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX) || 1000, // requests per window
   
   // Container sync interval (in milliseconds)
   syncInterval: parseInt(process.env.SYNC_INTERVAL) || 30000, // 30 seconds
