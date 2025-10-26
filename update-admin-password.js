@@ -1,5 +1,5 @@
-// Quick script to create an admin user
-// Run with: node create-admin-user.js
+// Update admin user password
+// Run with: node update-admin-password.js
 
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
@@ -16,37 +16,41 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-async function createAdminUser() {
+async function updateAdminPassword() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
-    // Hash password
+    // Find admin user
+    const admin = await User.findOne({ email: 'admin@orchestrator.com' });
+    
+    if (!admin) {
+      console.log('❌ Admin user not found!');
+      console.log('   Run: node create-admin-user.js');
+      process.exit(1);
+    }
+
+    // Hash new password
     const hashedPassword = await bcrypt.hash('admin123', 10);
 
-    // Create admin user
-    const admin = new User({
-      email: 'admin@orchestrator.com',
-      password: hashedPassword,
-      role: 'admin'
-    });
-
+    // Update password
+    admin.password = hashedPassword;
+    admin.role = 'admin'; // Ensure role is admin
     await admin.save();
-    console.log('✅ Admin user created successfully!');
+
+    console.log('✅ Admin password updated successfully!');
     console.log('   Email: admin@orchestrator.com');
     console.log('   Password: admin123');
+    console.log('   Role: admin');
     
     process.exit(0);
   } catch (error) {
-    if (error.code === 11000) {
-      console.log('⚠️  User already exists');
-    } else {
-      console.error('❌ Error:', error.message);
-    }
+    console.error('❌ Error:', error.message);
     process.exit(1);
   }
 }
 
-createAdminUser();
+updateAdminPassword();
+
 
 

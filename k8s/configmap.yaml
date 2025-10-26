@@ -17,11 +17,8 @@ data:
   SSL_KEY_PATH: "/etc/ssl/private/server.key"
   SSL_CA_PATH: "/etc/ssl/certs/ca.crt"
   
-  # MongoDB Configuration (Kubernetes MongoDB)
-  MONGODB_URI: "mongodb://admin:password123@mongo-0.mongo-service.default.svc.cluster.local:27017/containersDB?authSource=admin"
-  
-  # Or use MongoDB Atlas (uncomment and update with correct connection string):
-  # MONGODB_URI: "mongodb+srv://username:password@your-cluster.mongodb.net/containers?retryWrites=true&w=majority"
+  # MongoDB Configuration (MongoDB Atlas)
+  MONGODB_URI: "mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration"
   
   # JWT Configuration
   JWT_SECRET: "your-super-secret-jwt-key-change-this-in-production"
@@ -109,7 +106,7 @@ data:
         add_header X-Content-Type-Options nosniff;
         add_header X-XSS-Protection "1; mode=block";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss:;";
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:;" always;
         
         # Frontend static files
         location / {

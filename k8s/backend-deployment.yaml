@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: backend-orchestrator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
     spec:
       securityContext:
         runAsNonRoot: false
