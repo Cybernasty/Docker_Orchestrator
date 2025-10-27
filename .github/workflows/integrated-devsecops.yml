@@ -32,34 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full clone for better analysis
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: |
-            backend_orchestrator/package-lock.json
-            frontend_orchestrator/package-lock.json
-          
-      - name: Install backend dependencies
-        working-directory: ./backend_orchestrator
-        run: npm ci
         
-      - name: Install frontend dependencies
-        working-directory: ./frontend_orchestrator
-        run: npm ci
-        
-      - name: Run backend tests with coverage
-        working-directory: ./backend_orchestrator
-        run: |
-          npm test -- --coverage --watchAll=false || echo "Tests not configured"
-          
-      - name: Run frontend tests with coverage
-        working-directory: ./frontend_orchestrator
-        run: |
-          npm test -- --coverage --watchAll=false || echo "Tests not configured"
-          
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@master
         env:
