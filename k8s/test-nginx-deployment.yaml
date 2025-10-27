@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-nginx
+  namespace: orchestrator
+  labels:
+    app: test-nginx
+    test: pipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-nginx
+  template:
+    metadata:
+      labels:
+        app: test-nginx
+        test: pipeline
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-nginx
+  namespace: orchestrator
+  labels:
+    app: test-nginx
+spec:
+  selector:
+    app: test-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  type: ClusterIP
+
