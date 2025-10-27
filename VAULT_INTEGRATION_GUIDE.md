@@ -82,9 +82,9 @@ Initial Root Token: s.xxxxxxxxxxxxxxxxxxxx
 
 ```bash
 # Unseal with 3 keys (threshold)
-kubectl exec -n vault $VAULT_POD -- vault operator unseal <key1>
-kubectl exec -n vault $VAULT_POD -- vault operator unseal <key2>
-kubectl exec -n vault $VAULT_POD -- vault operator unseal <key3>
+kubectl exec -n vault vault-0 -- vault operator unseal D++ttaITviRlQm8tshYuCYB9pnMMUVOjAmrGi2bHYI5h
+kubectl exec -n vault vault-0 -- vault operator unseal i3uE6RnxD9u48Yj13ITRbhjS2xPvO+S72oet+UEmxIBk
+kubectl exec -n vault vault-0 -- vault operator unseal mGolRw9J8v4b1xjwYPxeec/hiZtNrDSwTtD7kcwtMZ4B
 
 # Check status
 kubectl exec -n vault $VAULT_POD -- vault status
@@ -93,7 +93,7 @@ kubectl exec -n vault $VAULT_POD -- vault status
 #### **Step 3: Login with Root Token**
 
 ```bash
-kubectl exec -n vault $VAULT_POD -- vault login <root-token>
+kubectl exec -n vault vault-0 -- vault login hvs.xNxrxsQtIo3un0DOGK7uApjv
 ```
 
 ---
@@ -104,34 +104,34 @@ kubectl exec -n vault $VAULT_POD -- vault login <root-token>
 
 ```bash
 # Enable Key-Value secrets engine v2
-kubectl exec -n vault $VAULT_POD -- vault secrets enable -version=2 -path=orchestrator kv
+kubectl exec -n vault vault-0 -- vault secrets enable -version=2 -path=orchestrator kv
 
 # Verify
-kubectl exec -n vault $VAULT_POD -- vault secrets list
+kubectl exec -n vault vault-0 -- vault secrets list
 ```
 
 #### **Step 2: Store Application Secrets**
 
 ```bash
 # Store JWT secret
-kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/jwt \
+kubectl exec -n vault vault-0 -- vault kv put orchestrator/jwt \
   secret="your-super-secret-jwt-key-change-in-production" \
   expires_in="24h"
 
-# Store MongoDB credentials
-kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/mongodb \
-  uri="mongodb://mongo:27017/containersDB" \
-  username="admin" \
-  password="secure-mongo-password"
+# Store MongoDB credentials (MongoDB Atlas)
+kubectl exec -n vault vault-0 -- vault kv put orchestrator/mongodb \
+  uri="mongodb+srv://zitounimontassar:R7XuZLoVK4QCFw0P@orcherstration.pscxr.mongodb.net/containers?retryWrites=true&w=majority&appName=Orcherstration" \
+  username="zitounimontassar" \
+  password="R7XuZLoVK4QCFw0P"
 
-# Store Docker registry credentials
-kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/docker \
-  registry="localhost:6500" \
-  username="admin" \
-  password="registry-password"
+# Store Docker registry credentials (Docker Hub)
+kubectl exec -n vault vault-0 -- vault kv put orchestrator/docker \
+  registry="docker.io" \
+  username="cybermonta" \
+  password="your-dockerhub-access-token"
 
 # Store application config
-kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/app \
+kubectl exec -n vault vault-0 -- vault kv put orchestrator/app \
   cors_origin="http://localhost:3000" \
   node_env="production" \
   port="5000"
@@ -141,7 +141,7 @@ kubectl exec -n vault $VAULT_POD -- vault kv put orchestrator/app \
 
 ```bash
 # Create policy file
-kubectl exec -n vault $VAULT_POD -- sh -c 'cat > /tmp/orchestrator-policy.hcl << EOF
+kubectl exec -n vault vault-0 -- sh -c 'cat > /tmp/orchestrator-policy.hcl << EOF
 path "orchestrator/*" {
   capabilities = ["read", "list"]
 }
@@ -152,26 +152,26 @@ path "orchestrator/data/*" {
 EOF'
 
 # Apply policy
-kubectl exec -n vault $VAULT_POD -- vault policy write orchestrator-policy /tmp/orchestrator-policy.hcl
+kubectl exec -n vault vault-0 -- vault policy write orchestrator-policy /tmp/orchestrator-policy.hcl
 ```
 
 #### **Step 4: Enable AppRole Authentication**
 
 ```bash
 # Enable AppRole auth method
-kubectl exec -n vault $VAULT_POD -- vault auth enable approle
+kubectl exec -n vault vault-0 -- vault auth enable approle
 
 # Create role for backend app
-kubectl exec -n vault $VAULT_POD -- vault write auth/approle/role/orchestrator-backend \
+kubectl exec -n vault vault-0 -- vault write auth/approle/role/orchestrator-backend \
   token_policies="orchestrator-policy" \
   token_ttl=1h \
   token_max_ttl=4h
 
 # Get role ID
-kubectl exec -n vault $VAULT_POD -- vault read auth/approle/role/orchestrator-backend/role-id
+kubectl exec -n vault vault-0 -- vault read auth/approle/role/orchestrator-backend/role-id
 
 # Generate secret ID
-kubectl exec -n vault $VAULT_POD -- vault write -f auth/approle/role/orchestrator-backend/secret-id
+kubectl exec -n vault vault -- vault write -f auth/approle/role/orchestrator-backend/secret-id
 ```
 
 **Save the Role ID and Secret ID** - you'll need them for the backend application.
