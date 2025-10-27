@@ -75,7 +75,7 @@ const MonitoringPage = () => {
         const list = data?.containers || [];
         setContainers(list);
       } catch (e) {
-        console.error("Error fetching containers:", e);
+        // Error fetching containers - silently continue
       }
     };
 
@@ -126,7 +126,6 @@ const MonitoringPage = () => {
         });
         
         if (!res.ok) {
-          console.error("Stats API error:", res.status, res.statusText);
           return;
         }
         const data = await res.json();
@@ -151,7 +150,7 @@ const MonitoringPage = () => {
           setLastUpdate(new Date());
         }
       } catch (e) {
-        console.error("Error fetching stats:", e);
+        // Error fetching stats - silently continue
       }
     };
 

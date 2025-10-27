@@ -23,7 +23,6 @@ const ProfilePage = () => {
     setMessage(null);
     
     // TODO: Implement API call to update profile
-    console.log("Saving profile:", profile);
     setMessage({ type: "success", text: "Profile updated successfully!" });
   };
 
@@ -42,7 +41,6 @@ const ProfilePage = () => {
     }
     
     // TODO: Implement API call to change password
-    console.log("Changing password");
     setMessage({ type: "success", text: "Password changed successfully!" });
     setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
   };
