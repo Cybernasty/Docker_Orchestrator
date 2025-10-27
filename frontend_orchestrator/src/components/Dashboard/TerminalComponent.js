@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { API_ENDPOINTS } from "../../config/api";
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
@@ -29,17 +30,12 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
       return;
     }
     
-    // Use localhost:5000 for WebSocket connection since backend runs on port 5000
-    const wsUrl = `ws://localhost:5000?token=${token}`;
-    console.log("🔗 Connecting to WebSocket:", wsUrl);
-    console.log("📦 Container ID:", container.containerId);
-    console.log("🌐 Current host:", window.location.host);
-    console.log("🔑 Token (first 20 chars):", token.substring(0, 20) + "...");
+    // Use API_ENDPOINTS for WebSocket connection
+    const wsUrl = `${API_ENDPOINTS.WEBSOCKET_URL}?token=${token}`;
     
     ws.current = new window.WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      console.log("✅ WebSocket connection opened successfully");
       setMessages((prev) => [...prev, reconnectAttempts.current > 0 ? "🔄 Reconnected to container shell..." : "Connected to container shell..."]);
       setStatus("Connected");
       setConnected(true);
@@ -52,10 +48,7 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
             containerId: container.containerId,
             containerName: containerName
           });
-          console.log("📤 Sending init message:", initMessage);
           ws.current.send(initMessage);
-        } else {
-          console.log("❌ WebSocket not ready for init");
         }
       }, 100);
     };
@@ -73,17 +66,11 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
           setMessages((prev) => [...prev, `ℹ️ ${data.message}`]);
         }
       } catch (error) {
-        console.error("Invalid WebSocket message:", error);
         setMessages((prev) => [...prev, `❌ Invalid message format: ${event.data}`]);
       }
     };
 
     ws.current.onclose = (event) => {
-      console.log("🔌 WebSocket connection closed:", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean
-      });
       setConnected(false);
       setStatus("Disconnected");
       if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
@@ -100,9 +87,6 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
     };
 
     ws.current.onerror = (err) => {
-      console.error("WebSocket error:", err);
-      console.error("WebSocket readyState:", ws.current?.readyState);
-      console.error("WebSocket URL:", ws.current?.url);
       setMessages((prev) => [...prev, "❌ WebSocket connection error occurred."]);
       setStatus("Connection error");
       setConnected(false);
@@ -129,17 +113,9 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
   const sendCommand = () => {
     if (input.trim() && ws.current && ws.current.readyState === WebSocket.OPEN && container?.containerId) {
       const commandData = JSON.stringify({ containerId: container.containerId, command: input });
-      console.log("📤 Sending command:", commandData);
       ws.current.send(commandData);
       setMessages((prev) => [...prev, `$ ${input}`]);
       setInput("");
-    } else {
-      console.log("❌ Cannot send command:", {
-        hasInput: !!input.trim(),
-        hasWebSocket: !!ws.current,
-        isOpen: ws.current?.readyState === WebSocket.OPEN,
-        hasContainerId: !!container?.containerId
-      });
     }
   };
 
@@ -151,26 +127,23 @@ const TerminalComponent = ({ container, containerName = "Container", shellUser =
   };
 
   const testConnection = () => {
-    console.log("🧪 Testing WebSocket connection...");
     const token = localStorage.getItem("token");
     if (!token) {
-      console.log("❌ No token found");
       return;
     }
     
-    const testWs = new WebSocket(`ws://localhost:5000?token=${token}`);
+    const testWs = new WebSocket(`${API_ENDPOINTS.WEBSOCKET_URL}?token=${token}`);
     
     testWs.onopen = () => {
-      console.log("✅ Test WebSocket connection opened");
       testWs.close();
     };
     
-    testWs.onerror = (err) => {
-      console.error("❌ Test WebSocket error:", err);
+    testWs.onerror = () => {
+      // WebSocket test error
     };
     
-    testWs.onclose = (event) => {
-      console.log("🔌 Test WebSocket closed:", event.code, event.reason);
+    testWs.onclose = () => {
+      // WebSocket test closed
     };
   };
 
