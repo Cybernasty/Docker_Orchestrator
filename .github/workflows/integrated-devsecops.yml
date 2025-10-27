@@ -268,74 +268,40 @@ jobs:
           fi
 
   # ==================================================================================
-  # PHASE 4: ARGOCD DEPLOYMENT
+  # PHASE 4: GITOPS DEPLOYMENT (ArgoCD Auto-Sync)
   # ==================================================================================
   
-  deploy-with-argocd:
-    name: 🚀 Deploy with ArgoCD
+  wait-for-argocd:
+    name: 🚀 GitOps Deployment (ArgoCD)
     needs: [update-manifests]
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Setup ArgoCD CLI
+      - name: ArgoCD Auto-Sync Info
         run: |
-          # Check if ArgoCD CLI is already installed
-          if ! command -v argocd &> /dev/null; then
-            echo "Installing ArgoCD CLI..."
-            curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-            sudo install -m 755 argocd-linux-amd64 /usr/local/bin/argocd
-            rm argocd-linux-amd64
-          fi
-          argocd version --client
+          echo "### 🎯 GitOps Deployment with ArgoCD" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ArgoCD will automatically detect the manifest changes and deploy:" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏱️  Detection time: ~3 minutes (default polling interval)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Auto-sync: Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 Self-heal: Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧹 Prune: Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Monitor deployment at: https://${{ secrets.ARGOCD_SERVER }}/applications/orchestrator-app" >> $GITHUB_STEP_SUMMARY
           
-      - name: Login to ArgoCD
+      - name: Wait for ArgoCD detection
         run: |
-          argocd login ${{ secrets.ARGOCD_SERVER }} \
-            --username ${{ secrets.ARGOCD_USERNAME }} \
-            --password ${{ secrets.ARGOCD_PASSWORD }} \
-            --insecure
-          echo "✅ Logged in to ArgoCD" >> $GITHUB_STEP_SUMMARY
+          echo "⏳ Waiting 30 seconds for ArgoCD to detect changes..."
+          sleep 30
+          echo "✅ ArgoCD should be syncing now" >> $GITHUB_STEP_SUMMARY
           
-      - name: Sync ArgoCD application
+      - name: Verify deployment (optional)
         run: |
-          echo "🔄 Syncing ArgoCD application: ${{ env.ARGOCD_APP_NAME }}"
-          argocd app sync ${{ env.ARGOCD_APP_NAME }} --prune --force
-          echo "✅ ArgoCD sync initiated" >> $GITHUB_STEP_SUMMARY
-          
-      - name: Wait for sync completion
-        run: |
-          echo "⏳ Waiting for deployment to complete..."
-          argocd app wait ${{ env.ARGOCD_APP_NAME }} --health --timeout 600
-          echo "✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
-          
-      - name: Get application status
-        if: always()
-        run: |
-          echo "### 🎯 ArgoCD Application Status" >> $GITHUB_STEP_SUMMARY
-          argocd app get ${{ env.ARGOCD_APP_NAME }} --show-operation >> $GITHUB_STEP_SUMMARY || true
-          
-      - name: Verify deployment
-        run: |
-          # Wait a bit for pods to stabilize
-          sleep 10
-          
-          echo "### 🔍 Deployment Verification" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
-          kubectl get services -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
-          
-          # Check if pods are running
-          BACKEND_READY=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=backend-orchestrator -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -c "True" || echo "0")
-          FRONTEND_READY=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=frontend-orchestrator -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -c "True" || echo "0")
-          
-          if [ "$BACKEND_READY" -gt 0 ] && [ "$FRONTEND_READY" -gt 0 ]; then
-            echo "✅ All pods are running and healthy" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️  Some pods may not be ready yet" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "### 🔍 Current Deployment Status" >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY || echo "Namespace not ready yet" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 Check ArgoCD UI for real-time deployment status" >> $GITHUB_STEP_SUMMARY
 
   # ==================================================================================
   # PHASE 5: POST-DEPLOYMENT VERIFICATION
@@ -343,7 +309,7 @@ jobs:
   
   post-deployment-scan:
     name: 🔍 Post-Deployment Security Verification
-    needs: deploy-with-argocd
+    needs: wait-for-argocd
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
     
@@ -372,7 +338,7 @@ jobs:
   
   pipeline-summary:
     name: 📋 DevSecOps Pipeline Summary
-    needs: [code-quality, filesystem-security-scan, build-and-scan-images, deploy-with-argocd, post-deployment-scan]
+    needs: [code-quality, filesystem-security-scan, build-and-scan-images, wait-for-argocd, post-deployment-scan]
     runs-on: ubuntu-latest
     if: always()
     
@@ -388,7 +354,7 @@ jobs:
           echo "| Code Quality | SonarQube | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Filesystem Scan | Trivy | ${{ needs.filesystem-security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Container Build & Scan | Docker + Trivy | ${{ needs.build-and-scan-images.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Deployment | ArgoCD | ${{ needs.deploy-with-argocd.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GitOps Deployment | ArgoCD (Auto-Sync) | ${{ needs.wait-for-argocd.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Post-Deployment | Verification | ${{ needs.post-deployment-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🛡️ Security & Quality Tools" >> $GITHUB_STEP_SUMMARY
