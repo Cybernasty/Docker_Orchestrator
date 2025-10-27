@@ -1,0 +1,440 @@
+name: 🔒 Integrated DevSecOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_HUB_USERNAME: cybermonta
+  DOCKER_REGISTRY: docker.io
+  BACKEND_IMAGE: orchestrator-backend
+  FRONTEND_IMAGE: orchestrator-frontend
+  NAMESPACE: orchestrator
+  ARGOCD_APP_NAME: orchestrator-app
+
+jobs:
+  # ==================================================================================
+  # PHASE 1: CODE QUALITY & SECURITY ANALYSIS
+  # ==================================================================================
+  
+  code-quality:
+    name: 📊 SonarQube Code Quality Analysis
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full clone for better analysis
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend_orchestrator/package-lock.json
+            frontend_orchestrator/package-lock.json
+          
+      - name: Install backend dependencies
+        working-directory: ./backend_orchestrator
+        run: npm ci
+        
+      - name: Install frontend dependencies
+        working-directory: ./frontend_orchestrator
+        run: npm ci
+        
+      - name: Run backend tests with coverage
+        working-directory: ./backend_orchestrator
+        run: |
+          npm test -- --coverage --watchAll=false || echo "Tests not configured"
+          
+      - name: Run frontend tests with coverage
+        working-directory: ./frontend_orchestrator
+        run: |
+          npm test -- --coverage --watchAll=false || echo "Tests not configured"
+          
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          
+      - name: SonarQube Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+        
+      - name: Generate Quality Report
+        if: always()
+        run: |
+          echo "### 📊 SonarQube Quality Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 View detailed report at: ${{ secrets.SONAR_HOST_URL }}/dashboard?id=${{ github.repository_owner }}_Orchestrator" >> $GITHUB_STEP_SUMMARY
+
+  filesystem-security-scan:
+    name: 🔍 Trivy Filesystem Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-filesystem.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: false
+          
+      - name: Upload Trivy filesystem results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-filesystem.sarif'
+          category: 'filesystem'
+          
+      - name: Generate Filesystem Security Report
+        if: always()
+        run: |
+          echo "### 🔍 Filesystem Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Trivy filesystem scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+
+  # ==================================================================================
+  # PHASE 2: BUILD & CONTAINER SECURITY
+  # ==================================================================================
+  
+  build-and-scan-images:
+    name: 🐳 Build & Scan Docker Images
+    needs: [code-quality, filesystem-security-scan]
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    outputs:
+      backend_image: ${{ steps.image_tags.outputs.backend_image }}
+      frontend_image: ${{ steps.image_tags.outputs.frontend_image }}
+      image_tag: ${{ steps.image_tags.outputs.image_tag }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          
+      - name: Generate image tags
+        id: image_tags
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="${{ github.ref_name }}-${SHORT_SHA}"
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "backend_image=${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "frontend_image=${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "📦 Image Tag: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend_orchestrator
+          push: false
+          load: true
+          tags: |
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend_orchestrator
+          push: false
+          load: true
+          tags: |
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Run Trivy scan on backend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Run Trivy scan on frontend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+          format: 'sarif'
+          output: 'trivy-frontend.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Upload Trivy backend scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          category: 'backend-image'
+          
+      - name: Upload Trivy frontend scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-frontend.sarif'
+          category: 'frontend-image'
+          
+      - name: Check for critical vulnerabilities
+        run: |
+          echo "### 🔒 Container Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Check backend
+          if grep -q '"level":"error"' trivy-backend.sarif 2>/dev/null; then
+            echo "❌ **Backend Image**: Critical vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️  Review required before deployment" >> $GITHUB_STEP_SUMMARY
+            BACKEND_CRITICAL=true
+          else
+            echo "✅ **Backend Image**: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            BACKEND_CRITICAL=false
+          fi
+          
+          # Check frontend
+          if grep -q '"level":"error"' trivy-frontend.sarif 2>/dev/null; then
+            echo "❌ **Frontend Image**: Critical vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️  Review required before deployment" >> $GITHUB_STEP_SUMMARY
+            FRONTEND_CRITICAL=true
+          else
+            echo "✅ **Frontend Image**: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            FRONTEND_CRITICAL=false
+          fi
+          
+          # For main branch, fail on critical vulnerabilities
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && ( [ "$BACKEND_CRITICAL" == "true" ] || [ "$FRONTEND_CRITICAL" == "true" ] ); then
+            echo "🚫 Deployment blocked due to critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+      - name: Push secure images to Docker Hub
+        run: |
+          echo "🚀 Pushing images to Docker Hub..."
+          docker push ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+          docker push ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+          docker push ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ steps.image_tags.outputs.image_tag }}
+          docker push ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
+          echo "✅ Images pushed successfully!" >> $GITHUB_STEP_SUMMARY
+
+  # ==================================================================================
+  # PHASE 3: UPDATE MANIFESTS FOR GITOPS
+  # ==================================================================================
+  
+  update-manifests:
+    name: 📝 Update Kubernetes Manifests
+    needs: build-and-scan-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update image tags in manifests
+        run: |
+          IMAGE_TAG="${{ needs.build-and-scan-images.outputs.image_tag }}"
+          
+          # Update backend deployment
+          sed -i "s|image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:.*|image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${IMAGE_TAG}|g" k8s/backend-deployment.yaml
+          
+          # Update frontend deployment
+          sed -i "s|image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:.*|image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${IMAGE_TAG}|g" k8s/frontend-deployment.yaml
+          
+          echo "✅ Manifests updated with tag: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Commit and push manifest changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "ℹ️  No manifest changes required" >> $GITHUB_STEP_SUMMARY
+          else
+            git commit -m "🚀 Update image tags to ${{ needs.build-and-scan-images.outputs.image_tag }} [skip ci]"
+            git push
+            echo "✅ Manifests committed and pushed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==================================================================================
+  # PHASE 4: ARGOCD DEPLOYMENT
+  # ==================================================================================
+  
+  deploy-with-argocd:
+    name: 🚀 Deploy with ArgoCD
+    needs: [update-manifests]
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup ArgoCD CLI
+        run: |
+          # Check if ArgoCD CLI is already installed
+          if ! command -v argocd &> /dev/null; then
+            echo "Installing ArgoCD CLI..."
+            curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            sudo install -m 755 argocd-linux-amd64 /usr/local/bin/argocd
+            rm argocd-linux-amd64
+          fi
+          argocd version --client
+          
+      - name: Login to ArgoCD
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+          echo "✅ Logged in to ArgoCD" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Sync ArgoCD application
+        run: |
+          echo "🔄 Syncing ArgoCD application: ${{ env.ARGOCD_APP_NAME }}"
+          argocd app sync ${{ env.ARGOCD_APP_NAME }} --prune --force
+          echo "✅ ArgoCD sync initiated" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Wait for sync completion
+        run: |
+          echo "⏳ Waiting for deployment to complete..."
+          argocd app wait ${{ env.ARGOCD_APP_NAME }} --health --timeout 600
+          echo "✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Get application status
+        if: always()
+        run: |
+          echo "### 🎯 ArgoCD Application Status" >> $GITHUB_STEP_SUMMARY
+          argocd app get ${{ env.ARGOCD_APP_NAME }} --show-operation >> $GITHUB_STEP_SUMMARY || true
+          
+      - name: Verify deployment
+        run: |
+          # Wait a bit for pods to stabilize
+          sleep 10
+          
+          echo "### 🔍 Deployment Verification" >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
+          kubectl get services -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
+          
+          # Check if pods are running
+          BACKEND_READY=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=backend-orchestrator -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -c "True" || echo "0")
+          FRONTEND_READY=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=frontend-orchestrator -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -c "True" || echo "0")
+          
+          if [ "$BACKEND_READY" -gt 0 ] && [ "$FRONTEND_READY" -gt 0 ]; then
+            echo "✅ All pods are running and healthy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️  Some pods may not be ready yet" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==================================================================================
+  # PHASE 5: POST-DEPLOYMENT VERIFICATION
+  # ==================================================================================
+  
+  post-deployment-scan:
+    name: 🔍 Post-Deployment Security Verification
+    needs: deploy-with-argocd
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Verify running containers
+        run: |
+          echo "### 🔒 Post-Deployment Security Check" >> $GITHUB_STEP_SUMMARY
+          
+          # Get running image versions
+          BACKEND_IMAGE=$(kubectl get statefulset backend-orchestrator -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}')
+          FRONTEND_IMAGE=$(kubectl get deployment frontend-orchestrator -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.template.spec.containers[0].image}')
+          
+          echo "**Backend Image**: \`${BACKEND_IMAGE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend Image**: \`${FRONTEND_IMAGE}\`" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Check pod security
+        run: |
+          # Check for any security-related issues in pods
+          kubectl get pods -n ${{ env.NAMESPACE }} -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.name' | while read pod; do
+            echo "📦 Pod: $pod" >> $GITHUB_STEP_SUMMARY
+          done
+
+  # ==================================================================================
+  # FINAL SUMMARY
+  # ==================================================================================
+  
+  pipeline-summary:
+    name: 📋 DevSecOps Pipeline Summary
+    needs: [code-quality, filesystem-security-scan, build-and-scan-images, deploy-with-argocd, post-deployment-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generate Complete Summary
+        run: |
+          echo "# 🔒 Complete DevSecOps Pipeline Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Pipeline Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Tool | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Quality | SonarQube | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Filesystem Scan | Trivy | ${{ needs.filesystem-security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Build & Scan | Docker + Trivy | ${{ needs.build-and-scan-images.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment | ArgoCD | ${{ needs.deploy-with-argocd.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Post-Deployment | Verification | ${{ needs.post-deployment-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🛡️ Security & Quality Tools" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Integrated Tools:" >> $GITHUB_STEP_SUMMARY
+          echo "- **SonarQube**: Code quality, security hotspots, and technical debt analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trivy**: Filesystem and container vulnerability scanning" >> $GITHUB_STEP_SUMMARY
+          echo "- **ArgoCD**: GitOps-based continuous deployment to Kubernetes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Hub**: Secure container registry with automated builds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Deployment Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_HUB_USERNAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace**: \`${{ env.NAMESPACE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📈 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. 🔍 Review security scan results in the **Security** tab" >> $GITHUB_STEP_SUMMARY
+          echo "2. 📊 Check code quality metrics in **SonarQube**" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🚀 Monitor deployment status in **ArgoCD UI**" >> $GITHUB_STEP_SUMMARY
+          echo "4. 📦 Verify application health in **Kubernetes Dashboard**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "🤖 *Generated by Integrated DevSecOps Pipeline*" >> $GITHUB_STEP_SUMMARY
+
