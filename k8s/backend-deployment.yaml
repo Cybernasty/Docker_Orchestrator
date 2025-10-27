@@ -24,7 +24,7 @@ spec:
         fsGroup: 0
       containers:
       - name: backend
-        image: cybermonta/orchestrator-backend:latest
+        image: cybermonta/orchestrator-backend:main-eba606f
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
