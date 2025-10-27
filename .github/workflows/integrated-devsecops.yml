@@ -73,12 +73,17 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         continue-on-error: true
+        id: quality_gate
         
       - name: Generate Quality Report
         if: always()
         run: |
           echo "### 📊 SonarQube Quality Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.quality_gate.outcome }}" == "failure" ]; then
+            echo "⚠️  Quality Gate failed but pipeline continues" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "🔗 View detailed report at: ${{ secrets.SONAR_HOST_URL }}/dashboard?id=${{ github.repository_owner }}_Orchestrator" >> $GITHUB_STEP_SUMMARY
 
   filesystem-security-scan:

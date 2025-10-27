@@ -214,7 +214,11 @@ const MonitoringPage = () => {
     const h = 40; const w = 180;
     if (!data.length) return <div className="h-10 bg-gray-100 rounded animate-pulse" />;
     const max = Math.max(100, ...data);
-    const points = data.map((v, i) => `${(i/(data.length-1)) * w},${h - (v/max) * h}`).join(" ");
+    const points = data.map((v, i) => {
+      const x = (i / Math.max(1, data.length - 1)) * w;
+      const y = h - (v / max) * h;
+      return `${x},${y}`;
+    }).join(" ");
     const areaPoints = `${points} L${w},${h} L0,${h} Z`;
     
     return (
@@ -241,7 +245,7 @@ const MonitoringPage = () => {
           />
           {data.length > 0 && (
             <circle 
-              cx={(data.length-1)/(data.length-1) * w} 
+              cx={w} 
               cy={h - (data[data.length-1]/max) * h} 
               r="3" 
               fill={color}
