@@ -25,8 +25,14 @@ export const API_ENDPOINTS = {
   // Image endpoints
   IMAGES: `${API_BASE_URL}/api/containers/images`,
   
-  // WebSocket
-  WEBSOCKET_URL: process.env.REACT_APP_WS_URL || window.location.origin.replace('http', 'ws'),
+  // WebSocket (proxy via nginx /ws/ path)
+  WEBSOCKET_URL: (() => {
+    if (process.env.REACT_APP_WS_URL) {
+      return process.env.REACT_APP_WS_URL;
+    }
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${window.location.host}/ws`;
+  })(),
 };
 
 export default API_ENDPOINTS; 

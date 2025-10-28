@@ -319,12 +319,89 @@ jobs:
           done
 
   # ==================================================================================
+  # PHASE 6: OWASP ZAP SECURITY SCAN
+  # ==================================================================================
+  
+  zap-security-scan:
+    name: 🔒 OWASP ZAP Security Scan
+    needs: wait-for-argocd
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
+    
+    steps:
+      - name: Deploy OWASP ZAP (if not running)
+        run: |
+          if ! kubectl get namespace zap &> /dev/null; then
+            echo "Deploying ZAP..."
+            kubectl apply -f k8s/zap-optimized.yaml
+            kubectl wait --for=condition=Ready pod -l app=zap -n zap --timeout=120s || echo "ZAP deployment timeout"
+          else
+            echo "ZAP already deployed"
+          fi
+          
+      - name: Wait for application to be ready
+        run: |
+          echo "⏳ Waiting for application to stabilize..."
+          sleep 60
+          
+      - name: Run OWASP ZAP Baseline Scan
+        run: |
+          ZAP_POD=$(kubectl get pod -n zap -l app=zap -o jsonpath='{.items[0].metadata.name}')
+          
+          if [ -z "$ZAP_POD" ]; then
+            echo "⚠️  ZAP pod not found, skipping scan" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          echo "### 🔒 OWASP ZAP Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "Running baseline scan against: http://frontend-orchestrator.orchestrator.svc.cluster.local" >> $GITHUB_STEP_SUMMARY
+          
+          # Run baseline scan (internal cluster URL)
+          kubectl exec -n zap $ZAP_POD -- zap-baseline.py \
+            -t http://frontend-orchestrator.orchestrator.svc.cluster.local \
+            -r /zap/wrk/report.html \
+            -J /zap/wrk/report.json \
+            -w /zap/wrk/report.md || true
+            
+          echo "✅ ZAP baseline scan completed" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Copy ZAP Reports
+        if: always()
+        run: |
+          ZAP_POD=$(kubectl get pod -n zap -l app=zap -o jsonpath='{.items[0].metadata.name}')
+          
+          if [ -n "$ZAP_POD" ]; then
+            # Copy reports
+            kubectl cp zap/$ZAP_POD:/zap/wrk/report.html ./zap-report.html 2>/dev/null || echo "HTML report not found"
+            kubectl cp zap/$ZAP_POD:/zap/wrk/report.json ./zap-report.json 2>/dev/null || echo "JSON report not found"
+            kubectl cp zap/$ZAP_POD:/zap/wrk/report.md ./zap-report.md 2>/dev/null || echo "MD report not found"
+            
+            # Show summary if JSON exists
+            if [ -f zap-report.json ]; then
+              echo "📊 **ZAP Scan Summary**:" >> $GITHUB_STEP_SUMMARY
+              cat zap-report.json >> $GITHUB_STEP_SUMMARY || true
+            fi
+          fi
+          
+      - name: Upload ZAP Reports as Artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-security-reports
+          path: |
+            zap-report.html
+            zap-report.json
+            zap-report.md
+          retention-days: 30
+
+  # ==================================================================================
   # FINAL SUMMARY
   # ==================================================================================
   
   pipeline-summary:
     name: 📋 DevSecOps Pipeline Summary
-    needs: [code-quality, filesystem-security-scan, build-and-scan-images, wait-for-argocd, post-deployment-scan]
+    needs: [code-quality, filesystem-security-scan, build-and-scan-images, wait-for-argocd, post-deployment-scan, zap-security-scan]
     runs-on: ubuntu-latest
     if: always()
     
@@ -342,12 +419,14 @@ jobs:
           echo "| Container Build & Scan | Docker + Trivy | ${{ needs.build-and-scan-images.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GitOps Deployment | ArgoCD (Auto-Sync) | ${{ needs.wait-for-argocd.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Post-Deployment | Verification | ${{ needs.post-deployment-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| DAST Security Scan | OWASP ZAP | ${{ needs.zap-security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🛡️ Security & Quality Tools" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Integrated Tools:" >> $GITHUB_STEP_SUMMARY
           echo "- **SonarQube**: Code quality, security hotspots, and technical debt analysis" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trivy**: Filesystem and container vulnerability scanning" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trivy**: Filesystem and container vulnerability scanning (SAST)" >> $GITHUB_STEP_SUMMARY
+          echo "- **OWASP ZAP**: Dynamic application security testing (DAST)" >> $GITHUB_STEP_SUMMARY
           echo "- **ArgoCD**: GitOps-based continuous deployment to Kubernetes" >> $GITHUB_STEP_SUMMARY
           echo "- **Docker Hub**: Secure container registry with automated builds" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

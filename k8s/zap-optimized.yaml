@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zap
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zap
+  namespace: zap
+  labels:
+    app: zap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zap
+  template:
+    metadata:
+      labels:
+        app: zap
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: worker
+      tolerations:
+      - key: node-role.kubernetes.io/worker
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: zap
+        image: ghcr.io/zaproxy/zaproxy:stable
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Start ZAP with optimized settings
+          zap.sh -daemon \
+            -host 0.0.0.0 \
+            -port 8080 \
+            -config api.disablekey=true \
+            -config api.addrs.addr.name=.* \
+            -config api.addrs.addr.regex=true \
+            -config connection.timeoutInSecs=60 \
+            -config spider.maxDuration=10 \
+            -config spider.thread=5
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+          name: zap-api
+        env:
+        - name: ZAP_PORT
+          value: "8080"
+        resources:
+          limits:
+            cpu: 300m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zap-service
+  namespace: zap
+spec:
+  selector:
+    app: zap
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: zap-api
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zap-nodeport
+  namespace: zap
+spec:
+  selector:
+    app: zap
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30808
+    protocol: TCP
+    name: zap-api
+  type: NodePort
+
