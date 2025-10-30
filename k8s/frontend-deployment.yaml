@@ -23,7 +23,7 @@ spec:
         fsGroup: 0
       containers:
       - name: frontend
-        image: cybermonta/orchestrator-frontend:main-b667318
+        image: cybermonta/orchestrator-frontend:main-f1dfef6
         imagePullPolicy: Always
         ports:
         - containerPort: 80
