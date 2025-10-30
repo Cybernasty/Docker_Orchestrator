@@ -416,79 +416,29 @@ jobs:
       - name: Generate ZAP HTML Report
         if: always()
         run: |
-          # Create HTML report from JSON
+          # Create simple markdown report from JSON
           if [ -f zap-alerts.json ]; then
-            cat > zap-report.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <title>OWASP ZAP Security Report</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px; }
-        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .stat-card.high { border-left: 4px solid #e53e3e; }
-        .stat-card.medium { border-left: 4px solid #dd6b20; }
-        .stat-card.low { border-left: 4px solid #d69e2e; }
-        .stat-card.info { border-left: 4px solid #3182ce; }
-        .count { font-size: 2.5em; font-weight: bold; }
-        .alert { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid; }
-        .alert.high { border-left-color: #e53e3e; }
-        .alert.medium { border-left-color: #dd6b20; }
-        .alert.low { border-left-color: #d69e2e; }
-        .alert-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
-        .badge { padding: 5px 10px; border-radius: 5px; font-size: 0.8em; font-weight: bold; }
-        .badge.high { background: #fed7d7; color: #c53030; }
-        .badge.medium { background: #feebc8; color: #c05621; }
-        .badge.low { background: #fefcbf; color: #975a16; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🔒 OWASP ZAP Security Report</h1>
-        <p>Docker Orchestrator - Security Assessment</p>
-        <p>Generated: $(date)</p>
-    </div>
-    <div class="summary">
-        <div class="stat-card high"><h3>High</h3><div class="count">HIGH_COUNT</div></div>
-        <div class="stat-card medium"><h3>Medium</h3><div class="count">MEDIUM_COUNT</div></div>
-        <div class="stat-card low"><h3>Low</h3><div class="count">LOW_COUNT</div></div>
-        <div class="stat-card info"><h3>Info</h3><div class="count">INFO_COUNT</div></div>
-    </div>
-    <div id="alerts"></div>
-    <script>
-        const alerts = ALERTS_JSON;
-        const container = document.getElementById('alerts');
-        alerts.forEach(alert => {
-            const div = document.createElement('div');
-            div.className = 'alert ' + alert.risk.toLowerCase();
-            div.innerHTML = \`
-                <div class="alert-title">\${alert.alert} <span class="badge \${alert.risk.toLowerCase()}">\${alert.risk}</span></div>
-                <div><strong>URL:</strong> \${alert.url}</div>
-                <div><strong>Description:</strong> \${alert.description}</div>
-                <div><strong>Solution:</strong> \${alert.solution}</div>
-            \`;
-            container.appendChild(div);
-        });
-    </script>
-</body>
-</html>
-EOF
-            
-            # Replace placeholders
             HIGH_COUNT=$(cat zap-alerts.json | grep -o '"risk":"High"' | wc -l || echo 0)
             MEDIUM_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Medium"' | wc -l || echo 0)
             LOW_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Low"' | wc -l || echo 0)
             INFO_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Informational"' | wc -l || echo 0)
             
-            sed -i "s/HIGH_COUNT/$HIGH_COUNT/g" zap-report.html
-            sed -i "s/MEDIUM_COUNT/$MEDIUM_COUNT/g" zap-report.html
-            sed -i "s/LOW_COUNT/$LOW_COUNT/g" zap-report.html
-            sed -i "s/INFO_COUNT/$INFO_COUNT/g" zap-report.html
-            sed -i "s/ALERTS_JSON/$(cat zap-alerts.json | jq -c '.alerts')/g" zap-report.html
+            # Create markdown report
+            echo "# OWASP ZAP Security Report" > zap-report.md
+            echo "" >> zap-report.md
+            echo "**Target:** http://frontend-orchestrator.orchestrator.svc.cluster.local" >> zap-report.md
+            echo "**Date:** $(date)" >> zap-report.md
+            echo "" >> zap-report.md
+            echo "## Summary" >> zap-report.md
+            echo "" >> zap-report.md
+            echo "| Severity | Count |" >> zap-report.md
+            echo "|----------|-------|" >> zap-report.md
+            echo "| High | $HIGH_COUNT |" >> zap-report.md
+            echo "| Medium | $MEDIUM_COUNT |" >> zap-report.md
+            echo "| Low | $LOW_COUNT |" >> zap-report.md
+            echo "| Info | $INFO_COUNT |" >> zap-report.md
             
-            echo "✅ HTML report generated" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Reports generated" >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Upload ZAP Reports as Artifacts
@@ -498,7 +448,7 @@ EOF
         with:
           name: zap-security-reports
           path: |
-            zap-report.html
+            zap-report.md
             zap-alerts.json
             zap-summary.json
           if-no-files-found: warn
