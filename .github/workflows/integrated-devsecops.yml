@@ -413,32 +413,33 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ ZAP security scan completed" >> $GITHUB_STEP_SUMMARY
           
-      - name: Generate ZAP HTML Report
+      - name: Generate ZAP Reports
         if: always()
         run: |
-          # Create simple markdown report from JSON
           if [ -f zap-alerts.json ]; then
+            # Use the HTML report generator script
+            chmod +x create-zap-html-report.sh
+            ./create-zap-html-report.sh zap-alerts.json zap-report.html || echo "HTML generation skipped"
+            
+            # Also create simple markdown
             HIGH_COUNT=$(cat zap-alerts.json | grep -o '"risk":"High"' | wc -l || echo 0)
             MEDIUM_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Medium"' | wc -l || echo 0)
             LOW_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Low"' | wc -l || echo 0)
             INFO_COUNT=$(cat zap-alerts.json | grep -o '"risk":"Informational"' | wc -l || echo 0)
             
-            # Create markdown report
             echo "# OWASP ZAP Security Report" > zap-report.md
             echo "" >> zap-report.md
             echo "**Target:** http://frontend-orchestrator.orchestrator.svc.cluster.local" >> zap-report.md
             echo "**Date:** $(date)" >> zap-report.md
             echo "" >> zap-report.md
-            echo "## Summary" >> zap-report.md
-            echo "" >> zap-report.md
             echo "| Severity | Count |" >> zap-report.md
             echo "|----------|-------|" >> zap-report.md
-            echo "| High | $HIGH_COUNT |" >> zap-report.md
-            echo "| Medium | $MEDIUM_COUNT |" >> zap-report.md
-            echo "| Low | $LOW_COUNT |" >> zap-report.md
-            echo "| Info | $INFO_COUNT |" >> zap-report.md
+            echo "| 🔴 High | $HIGH_COUNT |" >> zap-report.md
+            echo "| 🟡 Medium | $MEDIUM_COUNT |" >> zap-report.md
+            echo "| 🟢 Low | $LOW_COUNT |" >> zap-report.md
+            echo "| ℹ️ Info | $INFO_COUNT |" >> zap-report.md
             
-            echo "✅ Reports generated" >> $GITHUB_STEP_SUMMARY
+            echo "✅ HTML and Markdown reports generated" >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Upload ZAP Reports as Artifacts
@@ -448,6 +449,7 @@ jobs:
         with:
           name: zap-security-reports
           path: |
+            zap-report.html
             zap-report.md
             zap-alerts.json
             zap-summary.json
