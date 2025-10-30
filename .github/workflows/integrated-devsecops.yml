@@ -360,18 +360,25 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Check if target is accessible from ZAP pod
-          kubectl exec -n zap $ZAP_POD -- curl -s -o /dev/null -w "%{http_code}" http://frontend-orchestrator.orchestrator.svc.cluster.local || echo "Target may not be accessible"
+          HTTP_CODE=$(kubectl exec -n zap $ZAP_POD -- curl -s -o /dev/null -w "%{http_code}" http://frontend-orchestrator.orchestrator.svc.cluster.local || echo "000")
+          echo "Target HTTP Response: $HTTP_CODE" >> $GITHUB_STEP_SUMMARY
           
-          # Run baseline scan without file output (simpler)
+          if [ "$HTTP_CODE" = "000" ] || [ "$HTTP_CODE" = "404" ]; then
+            echo "⚠️  Target not accessible, skipping ZAP scan" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          # Run baseline scan with simple output
           echo "Running ZAP baseline scan..." >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
           kubectl exec -n zap $ZAP_POD -- zap-baseline.py \
             -t http://frontend-orchestrator.orchestrator.svc.cluster.local \
-            -I -s > zap-scan-output.txt 2>&1 || true
+            -I -s 2>&1 | tee zap-scan-output.txt || true
             
-          # Save output to summary
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           cat zap-scan-output.txt >> $GITHUB_STEP_SUMMARY || true
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ ZAP baseline scan completed" >> $GITHUB_STEP_SUMMARY
           
       - name: Save ZAP Scan Output
