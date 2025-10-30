@@ -355,44 +355,43 @@ jobs:
           fi
           
           echo "### 🔒 OWASP ZAP Security Scan" >> $GITHUB_STEP_SUMMARY
-          echo "Running baseline scan against: http://frontend-orchestrator.orchestrator.svc.cluster.local" >> $GITHUB_STEP_SUMMARY
+          echo "Target: http://frontend-orchestrator.orchestrator.svc.cluster.local" >> $GITHUB_STEP_SUMMARY
+          echo "ZAP Pod: $ZAP_POD" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Run baseline scan (internal cluster URL)
+          # Check if target is accessible from ZAP pod
+          kubectl exec -n zap $ZAP_POD -- curl -s -o /dev/null -w "%{http_code}" http://frontend-orchestrator.orchestrator.svc.cluster.local || echo "Target may not be accessible"
+          
+          # Run baseline scan without file output (simpler)
+          echo "Running ZAP baseline scan..." >> $GITHUB_STEP_SUMMARY
           kubectl exec -n zap $ZAP_POD -- zap-baseline.py \
             -t http://frontend-orchestrator.orchestrator.svc.cluster.local \
-            -r /zap/wrk/report.html \
-            -J /zap/wrk/report.json \
-            -w /zap/wrk/report.md || true
+            -I -s > zap-scan-output.txt 2>&1 || true
             
+          # Save output to summary
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat zap-scan-output.txt >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "✅ ZAP baseline scan completed" >> $GITHUB_STEP_SUMMARY
           
-      - name: Copy ZAP Reports
+      - name: Save ZAP Scan Output
         if: always()
         run: |
-          ZAP_POD=$(kubectl get pod -n zap -l app=zap -o jsonpath='{.items[0].metadata.name}')
-          
-          if [ -n "$ZAP_POD" ]; then
-            # Copy reports
-            kubectl cp zap/$ZAP_POD:/zap/wrk/report.html ./zap-report.html 2>/dev/null || echo "HTML report not found"
-            kubectl cp zap/$ZAP_POD:/zap/wrk/report.json ./zap-report.json 2>/dev/null || echo "JSON report not found"
-            kubectl cp zap/$ZAP_POD:/zap/wrk/report.md ./zap-report.md 2>/dev/null || echo "MD report not found"
-            
-            # Show summary if JSON exists
-            if [ -f zap-report.json ]; then
-              echo "📊 **ZAP Scan Summary**:" >> $GITHUB_STEP_SUMMARY
-              cat zap-report.json >> $GITHUB_STEP_SUMMARY || true
-            fi
+          # Upload the scan output as artifact
+          if [ -f zap-scan-output.txt ]; then
+            mv zap-scan-output.txt zap-report.txt
+            echo "✅ ZAP scan output saved" >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Upload ZAP Reports as Artifacts
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: zap-security-reports
           path: |
-            zap-report.html
-            zap-report.json
-            zap-report.md
+            zap-report.*
+          if-no-files-found: warn
           retention-days: 30
 
   # ==================================================================================

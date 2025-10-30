@@ -1,0 +1,174 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: monitoring
+data:
+  orchestrator-alerts.yml: |
+    groups:
+    - name: orchestrator-application
+      interval: 30s
+      rules:
+      # Container/Pod Alerts
+      - alert: OrchestratorPodDown
+        expr: kube_pod_status_phase{namespace="orchestrator", phase!="Running"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          component: orchestrator
+        annotations:
+          summary: "Orchestrator pod {{ $labels.pod }} is down"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been down for more than 5 minutes"
+          
+      - alert: OrchestratorPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{namespace="orchestrator"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes"
+          
+      # Resource Alerts
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{namespace="orchestrator"} / container_spec_memory_limit_bytes{namespace="orchestrator"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+        annotations:
+          summary: "High memory usage on {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit"
+          
+      - alert: CriticalMemoryUsage
+        expr: (container_memory_usage_bytes{namespace="orchestrator"} / container_spec_memory_limit_bytes{namespace="orchestrator"}) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator
+        annotations:
+          summary: "Critical memory usage on {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit - may be OOMKilled soon"
+          
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{namespace="orchestrator"}[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator
+        annotations:
+          summary: "High CPU usage on {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} has high CPU usage: {{ $value | humanize }}"
+          
+      # Backend Specific Alerts
+      - alert: BackendPodNotReady
+        expr: kube_pod_status_ready{namespace="orchestrator", pod=~"backend-orchestrator.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Backend pod not ready"
+          description: "Backend pod {{ $labels.pod }} has been not ready for 3 minutes"
+          
+      - alert: BackendReplicasDown
+        expr: kube_statefulset_status_replicas_ready{namespace="orchestrator", statefulset="backend-orchestrator"} < kube_statefulset_replicas{namespace="orchestrator", statefulset="backend-orchestrator"}
+        for: 5m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Backend replicas down"
+          description: "Only {{ $value }} backend replicas are ready"
+          
+      # Frontend Specific Alerts
+      - alert: FrontendPodNotReady
+        expr: kube_pod_status_ready{namespace="orchestrator", pod=~"frontend-orchestrator.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: frontend
+        annotations:
+          summary: "Frontend pod not ready"
+          description: "Frontend pod {{ $labels.pod }} has been not ready for 3 minutes"
+          
+      - alert: FrontendReplicasDown
+        expr: kube_deployment_status_replicas_available{namespace="orchestrator", deployment="frontend-orchestrator"} < kube_deployment_spec_replicas{namespace="orchestrator", deployment="frontend-orchestrator"}
+        for: 5m
+        labels:
+          severity: critical
+          component: frontend
+        annotations:
+          summary: "Frontend replicas down"
+          description: "Only {{ $value }} frontend replicas are available"
+    
+    - name: orchestrator-performance
+      interval: 1m
+      rules:
+      # Response Time Alerts (if you have metrics)
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace="orchestrator"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+          
+      # Disk Space Alerts
+      - alert: PersistentVolumeLowSpace
+        expr: (kubelet_volume_stats_available_bytes{namespace="orchestrator"} / kubelet_volume_stats_capacity_bytes{namespace="orchestrator"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "PersistentVolume {{ $labels.persistentvolumeclaim }} running low on space"
+          description: "Only {{ $value | humanizePercentage }} space available"
+          
+      - alert: PersistentVolumeCriticalSpace
+        expr: (kubelet_volume_stats_available_bytes{namespace="orchestrator"} / kubelet_volume_stats_capacity_bytes{namespace="orchestrator"}) < 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "PersistentVolume {{ $labels.persistentvolumeclaim }} critically low on space"
+          description: "Only {{ $value | humanizePercentage }} space available - immediate action required"
+    
+    - name: kubernetes-cluster
+      interval: 1m
+      rules:
+      # Node Alerts
+      - alert: NodeNotReady
+        expr: kube_node_status_condition{condition="Ready", status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: cluster
+        annotations:
+          summary: "Node {{ $labels.node }} is not ready"
+          description: "Node {{ $labels.node }} has been not ready for 5 minutes"
+          
+      - alert: NodeHighMemoryPressure
+        expr: kube_node_status_condition{condition="MemoryPressure", status="true"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: cluster
+        annotations:
+          summary: "Node {{ $labels.node }} under memory pressure"
+          description: "Node {{ $labels.node }} is experiencing memory pressure"
+          
+      - alert: NodeHighDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: cluster
+        annotations:
+          summary: "Node {{ $labels.node }} under disk pressure"
+          description: "Node {{ $labels.node }} is experiencing disk pressure"
+
